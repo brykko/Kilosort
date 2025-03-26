@@ -1,5 +1,6 @@
 from numba import njit
 import numpy as np
+from scipy.stats import norm
 import torch
 from torch.nn.functional import conv1d
 import math 
@@ -74,13 +75,27 @@ def CCG_metrics(st1, st2, K, T, nbins=None, tbin=None):
     return Q12, R12, R00
 
 def check_CCG(st1, st2=None, nbins = 500, tbin  = 1/1000, acg_threshold=0.2,
-              ccg_threshold=0.25):
+              ccg_threshold=0.25, use_shape_criterion=False):
     if st2 is None:
         st2 = st1.copy()
+        is_acorr = True
+    else:
+        is_acorr = False
     K , T= compute_CCG(st1, st2, nbins = nbins, tbin = tbin)
     Q12, R12, R00 = CCG_metrics(st1, st2, K, T,  nbins = nbins, tbin = tbin)
     is_refractory    = Q12<acg_threshold  and (R12<.2)#  or R00<.25)
     cross_refractory = Q12<ccg_threshold and (R12<.05)# or R00<.25)
+
+    # Optionally use Rich's extra CCG shape criterion. This rule enforces that
+    # 'refractoriness' is only detected if the CCG and ACG shapes are similar too
+    if use_shape_criterion:
+        assert not is_acorr, "option 'use_shape_criterion' is only valid when st1 and st2 are from different units"
+        r, _ = CCG_ACG_similarity(st1, st2, tbin=tbin, nbins=nbins)
+        same_shape = r > 0.5
+        if not same_shape:
+            is_refractory = False
+            cross_refractory = False
+
     return is_refractory, cross_refractory, Q12
 
 def similarity(Wall, W, nt=61):
@@ -111,3 +126,61 @@ def refract(iclust2, st0, acg_threshold=0.2, ccg_threshold=0.25):
                 )
 
     return is_refractory, Q12
+
+def CCG_ACG_similarity(st1, st2, tbin = 1/1000, nbins = 500, max_lag=0.050):
+
+    K, _ = compute_CCG(st1, st2, tbin=tbin, nbins=nbins)
+    A1, _ = compute_CCG(st1, st1, tbin=tbin, nbins=nbins)
+    A2, _ = compute_CCG(st2, st2, tbin=tbin, nbins=nbins)
+    lags = np.arange(-nbins, nbins+1) * tbin
+
+    # compute_CCG() doesn't remove self-coincidence events from
+    # autocorrelations, so we do this correction here. This is the
+    # same correction method used in Rich's MATLAB implementation. 
+    i0 = np.where(lags==0)
+    A1[i0] -= len(st1)
+    A2[i0] -= len(st2)
+
+    correlograms = {'CCG': K, 'ACG1': A1, 'ACG2': A2, 'lags': lags}
+
+    r1 = CCG_corr(lags, K, A1, max_lag)
+    r2 = CCG_corr(lags, K, A2, max_lag)
+    
+    # print("r1 = {:3f}".format(r1))
+    # print("r2 = {:3f}".format(r2))
+    similarity = np.min((r1, r2))
+    return similarity, correlograms
+
+def CCG_corr(T, C1, C2, max_lag):
+
+    TOL = 1e-6 # numerical tolerance to prevent rounding errors
+
+    # Smooth the raw correlograms 
+    x = np.arange(-10, 11)
+    f = norm.pdf(x, loc=0, scale=4)
+    f = f / np.sum(f)  # not really necessary to normalize
+    C1 = np.convolve(C1, f, mode='same') 
+    C2 = np.convolve(C2, f, mode='same')
+
+    # Select indices within the maximum lag.
+    viR = np.abs(T) <= (max_lag + TOL)
+    vleft = viR & (T < 0)
+    vright = viR & (T > 0)
+
+    # Compute Pearson correlation coefficients.
+    # Check if there are enough data points; otherwise, return 0.
+    if np.sum(vleft) > 1:
+        r_l = np.corrcoef(C1[vleft], C2[vleft])[0, 1]
+    else:
+        r_l = 0.0
+
+    if np.sum(vright) > 1:
+        r_r = np.corrcoef(C1[vright], C2[vright])[0, 1]
+    else:
+        r_r = 0.0
+    
+    # Return the maximum of the two correlations.
+    # print("n_l = {}, n_r = {}".format(np.sum(vleft), np.sum(vright)))
+    # print("r_l = {}, r_r = {}".format(r_l, r_r))
+    r = max(r_l, r_r)
+    return r

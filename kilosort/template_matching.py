@@ -141,6 +141,15 @@ def align_U(U, ops, device=torch.device('cuda')):
 
 
 def postprocess_templates(Wall, ops, clu, st, device=torch.device('cuda')):
+    # This function is called after the first round of clustering. It checks the
+    # similarity of all templates to each other, and merges any templates whose
+    # similarity is over a fixed threshold. By default KS4 uses 0.9, but the 
+    # setting 'corr_threshold_1' allows this value to be adjusted.
+    #
+    # N.B. here the 'mu' option is passed to merging_function(), which means
+    # that it uses the template norm (?) instead of the CCG to make merging 
+    # decisions.
+
     Wall2, _ = align_U(Wall, ops, device=device)
     #Wall3, _= remove_duplicates(ops, Wall2)
     Wall3, _, _ = merging_function(ops, Wall2.transpose(1,2), clu, st[:,0],
@@ -242,6 +251,23 @@ def run_matching(ops, X, U, ctc, device=torch.device('cuda')):
 
 
 def merging_function(ops, Wall, clu, st, r_thresh=0.5, mode='ccg', device=torch.device('cuda')):
+    # This is the function responsible for the 'global merging' step described in the paper,
+    # which checks for candidate merges between *all* pairs of clusters, based on criteria
+    # of (1) high correlation of the template waveforms and (2) either a refractrory CCG, or 
+    # similar template norms.
+    #
+    # Additionally, Rich's optional criterion of CCG/ACG shape similarity is included
+    # here, and can be enabled/disabled by setting 'acg_xcg_shape_criterion' in parameters.py.
+
+    # This function is called in two pipeline steps: 
+    # (1) run_kilosort.detect_spikes() -> postprocess_templates()
+    #       Here it's run with r_thresh=0.9 in 'mu' mode, which merges similar clusters whose
+    #       template norms differ by <20%
+    #
+    # (2) run_kilosort.cluster_spikes()
+    #       Here it's run with r_thresh=0.5, in 'ccg' mode, which merges similar clusters
+    #       that also have refractory dips.
+
     clu2 = clu.copy()
     clu_unq, ns = np.unique(clu2, return_counts = True)
 
@@ -255,6 +281,8 @@ def merging_function(ops, Wall, clu, st, r_thresh=0.5, mode='ccg', device=torch.
 
     acg_threshold = ops['settings']['acg_threshold']
     ccg_threshold = ops['settings']['ccg_threshold']
+    use_shape_criterion = ops['settings']['correlogram_shape_criterion']
+
     if mode == 'ccg':
         is_ref, est_contam_rate = CCG.refract(clu, st/ops['fs'],
                                               acg_threshold=acg_threshold,
@@ -274,6 +302,7 @@ def merging_function(ops, Wall, clu, st, r_thresh=0.5, mode='ccg', device=torch.
         kk = clu_unq[isort[t]]
 
         if (mode == 'ccg') and is_ref[kk]==0:
+            # If the unit isn't refractory, skip it
             t += 1
             continue
 
@@ -281,12 +310,13 @@ def merging_function(ops, Wall, clu, st, r_thresh=0.5, mode='ccg', device=torch.
             t += 1
             continue
 
-        mu = (Ww**2).sum((1,2), keepdims=True)**.5
+        mu = (Ww**2).sum((1,2), keepdims=True)**.5  # template norms(?)
         Wnorm = Ww / (1e-6 + mu)
 
         UtU = torch.einsum('lk, jlm -> jkm',  Wnorm[kk], Wnorm)
         ctc = torch.einsum('jkm, kml -> jl', UtU, WtW)
 
+        # Compute template similarity
         cmax = ctc.max(1)[0]
         cmax[kk] = 0
 
@@ -302,9 +332,11 @@ def merging_function(ops, Wall, clu, st, r_thresh=0.5, mode='ccg', device=torch.
                 break
             # compare with CCG
             if mode == 'ccg':
+                # Decide based on CCG refractoriness
                 st1 = st[clu2==jj] / ops['fs']
                 _, is_ccg, _ = CCG.check_CCG(st0, st1, acg_threshold=acg_threshold,
-                                             ccg_threshold=ccg_threshold)        
+                                             ccg_threshold=ccg_threshold, 
+                                             use_shape_criterion=use_shape_criterion)        
             else:
                 dmu = 2 * (mu[kk] - mu[jj]) / (mu[kk] + mu[jj])
                 is_ccg = dmu.abs() < 0.2

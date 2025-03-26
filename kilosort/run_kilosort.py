@@ -170,6 +170,7 @@ def run_kilosort(settings, probe=None, probe_name=None, filename=None,
     setup_logger(results_dir, verbose_console=verbose_console)
 
     try:
+        logger.info(f"Settings {settings}")
         logger.info(f"Kilosort version {kilosort.__version__}")
         logger.info(f"Python version {platform.python_version()}")
         logger.info('-'*40)
@@ -660,9 +661,11 @@ def detect_spikes(ops, device, bfile, tic0=np.nan, progress_bar=None,
         ops, st0, tF, mode='spikes', device=device, progress_bar=progress_bar,
         clear_cache=clear_cache
         )
+    # postprocess_templates() in turn calls merging_function() 
     Wall3 = template_matching.postprocess_templates(Wall, ops, clu, st0, device=device)
     logger.info(f'{clu.max()+1} clusters found, in {time.time()-tic : .2f}s; ' +
                 f'total {time.time()-tic0 : .2f}s')
+    logger.info(f'{Wall3.shape[0]} templates after merging clusters')
     logger.debug(f'clu shape: {clu.shape}')
     logger.debug(f'Wall shape: {Wall.shape}')
     
@@ -735,6 +738,8 @@ def cluster_spikes(st, tF, ops, device, bfile, tic0=np.nan, progress_bar=None,
     logger.info(' ')
     logger.info('Merging clusters')
     logger.info('-'*40)
+
+    # Call the merging function in default mode ('ccg')
     Wall, clu, is_ref = template_matching.merging_function(ops, Wall, clu, st[:,0],
                                                            device=device)
     clu = clu.astype('int32')

@@ -393,6 +393,15 @@ EXTRA_PARAMETERS = {
             """
     },
 
+    'correlogram_shape_criterion': {
+        'gui_name': 'correlogram_shape_criterion', 'type': bool, 
+        'min': None, 'max': None, 'exclude': [], 'default': False, 'step': 'clustering',
+        'description':
+            """
+            Specifies whether to use Rich's cluster-merging criterion that requires
+            candidate merged clusters' ACGs to have similar shapes to the CCG.
+            """
+    },
 
     ### POSTPROCESSING
     'duplicate_spike_ms': {
@@ -472,3 +481,21 @@ def compare_settings(settings):
         else:
             extra_keys.append(k)
     return modified_settings, extra_keys
+
+
+def get_preset(name):
+    """Helper function that defines named parameter sets 
+    """
+
+    settings = dict()
+
+    if name == "original":
+        # This returns the unmodified base KS4 settings
+        pass
+    elif name == "standard":
+        # This returns Rich's parameter set intended to reproduce
+        # some of the tweaks made to KS2.5
+        settings['correlogram_shape_criterion'] = True
+    else:
+        raise ValueError("{} is not a valid preset name".format(name))
+    return settings
