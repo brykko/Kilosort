@@ -233,14 +233,14 @@ def compute_score(mu, mu2, N, ccN, lam):
     return score
 
 
-def run_one(Xd, st0, nskip = 20, lam = 0):
-    iclust, iclust0, M = cluster(Xd,nskip = nskip, lam = 0, seed = 5)
-    xtree, tstat, my_clus = hierarchical.maketree(M, iclust, iclust0)
-    xtree, tstat = swarmsplitter.split(Xd.numpy(), xtree, tstat, iclust,
-                                       my_clus, meta = st0)
-    iclust1 = swarmsplitter.new_clusters(iclust, my_clus, xtree, tstat)
+# def run_one(Xd, st0, nskip = 20, lam = 0):
+#     iclust, iclust0, M = cluster(Xd,nskip = nskip, lam = 0, seed = 5)
+#     xtree, tstat, my_clus = hierarchical.maketree(M, iclust, iclust0)
+#     xtree, tstat = swarmsplitter.split(Xd.numpy(), xtree, tstat, iclust,
+#                                        my_clus, meta = st0)
+#     iclust1 = swarmsplitter.new_clusters(iclust, my_clus, xtree, tstat)
 
-    return iclust1
+#     return iclust1
 
 
 def xy_templates(ops):
@@ -359,6 +359,8 @@ def run(ops, st, tF,  mode = 'template', device=torch.device('cuda'),
     dmin = ops['dmin']
     dminx = ops['dminx']
     nskip = ops['settings']['cluster_downsampling']
+    use_shape_criterion = ops['settings']['correlogram_shape_criterion']
+    bimodality_threshold = ops['settings']['merge_bimodality_threshold']
     ycent = y_centers(ops)
     xcent = x_centers(ops)
     nsp = st.shape[0]
@@ -412,8 +414,8 @@ def run(ops, st, tF,  mode = 'template', device=torch.device('cuda'),
                     xtree, tstat, my_clus = hierarchical.maketree(M, iclust, iclust0)
 
                     xtree, tstat = swarmsplitter.split(
-                        Xd.numpy(), xtree, tstat,iclust, my_clus, meta=st0
-                        )
+                        Xd.numpy(), xtree, tstat,iclust, my_clus, bimodality_threshold,
+                          meta=st0, use_shape_criterion = use_shape_criterion)
 
                     iclust = swarmsplitter.new_clusters(iclust, my_clus, xtree, tstat)
 

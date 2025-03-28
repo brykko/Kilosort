@@ -143,17 +143,18 @@ def align_U(U, ops, device=torch.device('cuda')):
 def postprocess_templates(Wall, ops, clu, st, device=torch.device('cuda')):
     # This function is called after the first round of clustering. It checks the
     # similarity of all templates to each other, and merges any templates whose
-    # similarity is over a fixed threshold. By default KS4 uses 0.9, but the 
-    # setting 'corr_threshold_1' allows this value to be adjusted.
+    # similarity is over a fixed threshold. By default this value is 0.9, but the 
+    # setting 'merge_correlation_threshold_1' allows it to be adjusted.
     #
     # N.B. here the 'mu' option is passed to merging_function(), which means
     # that it uses the template norm (?) instead of the CCG to make merging 
     # decisions.
 
     Wall2, _ = align_U(Wall, ops, device=device)
+    corr_threshold = ops['settings']['merge_correlation_threshold_1']
     #Wall3, _= remove_duplicates(ops, Wall2)
     Wall3, _, _ = merging_function(ops, Wall2.transpose(1,2), clu, st[:,0],
-                                   0.9, 'mu', device=device)
+                                   r_thresh=corr_threshold, mode='mu', device=device)
     Wall3 = Wall3.transpose(1,2).to(device)
     return Wall3
 
@@ -290,7 +291,7 @@ def merging_function(ops, Wall, clu, st, r_thresh=0.5, mode='ccg', device=torch.
 
     nt = ops['nt']
     W = ops['wPCA'].contiguous()
-    WtW = conv1d(W.reshape(-1, 1,nt), W.reshape(-1, 1 ,nt), padding = nt) 
+    WtW = conv1d(W.reshape(-1, 1,nt), W.reshape(-1, 1 ,nt), padding = nt)
     WtW = torch.flip(WtW, [2,])
 
     t = 0

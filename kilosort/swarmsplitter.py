@@ -1,7 +1,10 @@
 import numpy as np
 from numba import njit
 import math
-from kilosort.CCG import compute_CCG, CCG_metrics
+import logging
+from kilosort.CCG import compute_CCG, CCG_metrics, CCG_ACG_similarity
+
+logger = logging.getLogger(__name__)
 
 def count_elements(kk, iclust, my_clus, xtree):
     n1 = np.isin(iclust, my_clus[xtree[kk, 0]]).sum()
@@ -42,27 +45,40 @@ def bimod_score(xproj):
     xbin, _ = np.histogram(xproj, np.linspace(-2,2,400))
     xbin = gaussian_filter1d(xbin.astype('float32'), 4)
 
-    imin = np.argmin(xbin[175:225])
-    xmin = np.min(xbin[175:225])
-    xm1  = np.max(xbin[:imin+175])
-    xm2  = np.max(xbin[imin+175:])
+    imin = np.argmin(xbin[175:225]) # dip location in ROI
+    xmin = np.min(xbin[175:225])    # dip value
+    xm1  = np.max(xbin[:imin+175])  # max before the dip
+    xm2  = np.max(xbin[imin+175:])  # max after the dip
 
+    # score ranges from 0 (complete separation) to 1 (no separation)
     score = 1 - np.maximum(xmin/xm1, xmin/xm2)
     return score
 
-def check_CCG(st1, st2=None, nbins = 500, tbin  = 1/1000):
+def check_CCG(st1, st2=None, nbins = 500, tbin  = 1/1000, use_shape_criterion = False):
     if st2 is None:
         st2 = st1.copy()
     K , T= compute_CCG(st1, st2, nbins = nbins, tbin = tbin)
     Q12, R12, R00 = CCG_metrics(st1, st2, K, T,  nbins = nbins, tbin = tbin)
+    # N.B. these criteria are slightly different from those in CCG.check_CCG()
     is_refractory    = Q12<.1  and (R12<.2  or R00<.25)
     cross_refractory = Q12<.25 and (R12<.05 or R00<.25)
+
+    if use_shape_criterion:
+        # (only valid when st1 and st2 are from different units)
+        r, _ = CCG_ACG_similarity(st1, st2, tbin=tbin, nbins=nbins)
+        same_shape = r > 0.5
+        if not same_shape:
+            if is_refractory:
+                logger.debug("Tree merge vetoed")
+            is_refractory = False
+            cross_refractory = False
+            
     return is_refractory, cross_refractory
 
-def refractoriness(st1, st2):
+def refractoriness(st1, st2, use_shape_criterion = False):
     # compute goodness of st1, st2, and both
 
-    is_refractory = check_CCG(st1, st2)[1]
+    is_refractory = check_CCG(st1, st2, use_shape_criterion=use_shape_criterion)[1]
     if is_refractory:
         criterion = 1 # never split
         #print('this is refractory')
@@ -77,7 +93,7 @@ def refractoriness(st1, st2):
         #    print('good cluster becomes bad')
     return criterion
 
-def split(Xd, xtree, tstat, iclust, my_clus, verbose = True, meta = None):
+def split(Xd, xtree, tstat, iclust, my_clus, bimodality_threshold, verbose = True, meta = None, use_shape_criterion = False):
     xtree = np.array(xtree)
 
     kk = xtree.shape[0]-1
@@ -102,14 +118,16 @@ def split(Xd, xtree, tstat, iclust, my_clus, verbose = True, meta = None):
 
         if meta is not None and criterion==0:
             # second mutation is based on meta_data
-            criterion = refractoriness(meta[ix1],meta[ix2])
+            criterion = refractoriness(meta[ix1],meta[ix2], use_shape_criterion=use_shape_criterion)
             #criterion = 0
         
         if criterion==0:
             xproj, score = check_split(Xd, kk, xtree, iclust, my_clus)
             # third mutation is bimodality
             #xproj, score = check_split(Xd, kk, xtree, iclust, my_clus)
-            criterion = 2 * (score <  .6) - 1
+            # threshold = 0.6
+            # threshold = 0.0
+            criterion = 2 * (score <  bimodality_threshold) - 1
 
         if criterion==0:
             # fourth mutation is local modularity (not reachable)

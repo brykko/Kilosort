@@ -393,6 +393,54 @@ EXTRA_PARAMETERS = {
             """
     },
 
+    'merge_bimodality_threshold': {
+        'gui_name': 'correlogram_shape_criterion', 'type': float, 
+        'min': 0, 'max': 1, 'exclude': [], 'default': 0.6, 'step': 'clustering',
+        'description':
+            """
+            Specifies the bimodality score below which a pair of units will be
+            merged by the 'merging tree' algorithm.
+            
+            This setting has a large impact on the number of clusters. A value
+            of 0 will prevent any merges. A value of 1 will accept all merges in
+            the tree.
+            """
+    },
+
+    'merge_correlation_threshold_1': {
+        'gui_name': 'acg threshold', 'type': float, 'min': 0, 'max': 1,
+        'exclude': [0], 'default': 0.9, 'step': 'clustering',
+        'description':
+            """
+            In the first global merging step, only pairs of templates whose
+            waveform correlation exceeds this value will be considered for
+            merging. Increasing this value will reduce the number of
+            candidate merges, and hence increase the number of resultant
+            units.
+
+            This merging step is more permissive than the final step,
+            because the latter also uses CCG refractoriness as a criterion,
+            while this step does not. Therefore, during this step there 
+            tends to be a much higher acceptance rate of merges for the
+            pairs of units that are checked.
+
+            The high acceptance rate of merges at this step means that the 
+            waveform correlation threshold will have a larger impact than
+            at the final step.
+            """
+    },
+
+    'merge_correlation_threshold_2': {
+        'gui_name': 'acg threshold', 'type': float, 'min': 0, 'max': 1,
+        'exclude': [0], 'default': 0.5, 'step': 'clustering',
+        'description':
+            """
+            This parameter works identically to the setting 
+            'merge_correlation_threshold_1', but applies to the
+            final clustering step.
+            """
+    },
+
     'correlogram_shape_criterion': {
         'gui_name': 'correlogram_shape_criterion', 'type': bool, 
         'min': None, 'max': None, 'exclude': [], 'default': False, 'step': 'clustering',
@@ -484,7 +532,7 @@ def compare_settings(settings):
 
 
 def get_preset(name):
-    """Helper function that defines named parameter sets 
+    """Helper function that defines named parameter sets.
     """
 
     settings = dict()
@@ -493,9 +541,45 @@ def get_preset(name):
         # This returns the unmodified base KS4 settings
         pass
     elif name == "standard":
-        # This returns Rich's parameter set intended to reproduce
-        # some of the tweaks made to KS2.5
+        # Custom preset intended to give a finer resolution of 
+        # clustering, similar to Rich's customized version of KS2.5.
+
+        # Here we disable the 'merging tree' algorithm, which normallly
+        # merges pairs of units whose joint spike features are *not* clearly 
+        # separated (bimodally distributed) on the regression axis. We
+        # set the threshold for the bimodality score to zero, which causes
+        # the algorithm to reject all possible merges.
+        #
+        # This seems appropriate to do, if we assume that the raw clustering
+        # output already has the correct level of granularity. The KS4 
+        # paper states that the initial clusters are 'over-split' (which 
+        # would warrant the subsequent merging steps). However, if the 
+        # neural activity is very dense (e.g. MEC), we may want to skip the
+        # merging completely.
+        # 
+        # We may indeed miss some necessary merges by making this 
+        # modification; however the subsequent global merging step should
+        # detect these, informed by a refractory CCG.  
+        settings['merge_bimodality_threshold'] = 0 # no merges
+
+        # Here we enable a new rule that should reduce the 'global' merging 
+        # algorithm's likelihood of identifying false-positive 'refractory'
+        # cross-correlograms that are actually due to anti-phase tuning
+        # relationships (commonly observed with grid and HD cells).
         settings['correlogram_shape_criterion'] = True
+
+        # Here we increase the minimum template-correlation value that
+        # defines how similar two templates must be for them to be merged.
+        # This parameter only applies to the first clustering stage.
+        #
+        # This change means that only *very* similar templates will be 
+        # merged. This should help with allowing templates to separate 
+        # the densely
+        #
+        # (We don't modify the threshold for the second clustering stage,
+        # because the merging rule is informed by the CCG and is therefore
+        # more stringent)
+        settings['merge_correlation_threshold_1'] = 0.975
     else:
         raise ValueError("{} is not a valid preset name".format(name))
     return settings

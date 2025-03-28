@@ -740,7 +740,9 @@ def cluster_spikes(st, tF, ops, device, bfile, tic0=np.nan, progress_bar=None,
     logger.info('-'*40)
 
     # Call the merging function in default mode ('ccg')
+    corr_threshold = ops['settings']['merge_correlation_threshold_2']
     Wall, clu, is_ref = template_matching.merging_function(ops, Wall, clu, st[:,0],
+                                                           r_thresh=corr_threshold,
                                                            device=device)
     clu = clu.astype('int32')
     logger.info(f'{clu.max()+1} units found, in {time.time()-tic : .2f}s; ' + 
