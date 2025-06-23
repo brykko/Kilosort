@@ -140,7 +140,7 @@ def align_U(U, ops, device=torch.device('cuda')):
     return Unew, imax
 
 
-def postprocess_templates(Wall, ops, clu, st, device=torch.device('cuda')):
+def postprocess_templates(Wall, ops, clu, st, tF, device=torch.device('cuda')):
     # This function is called after the first round of clustering. It checks the
     # similarity of all templates to each other, and merges any templates whose
     # similarity is over a fixed threshold. By default this value is 0.9, but the 
@@ -153,8 +153,10 @@ def postprocess_templates(Wall, ops, clu, st, device=torch.device('cuda')):
     Wall2, _ = align_U(Wall, ops, device=device)
     corr_threshold = ops['settings']['merge_correlation_threshold_1']
     #Wall3, _= remove_duplicates(ops, Wall2)
-    Wall3, _, _ = merging_function(ops, Wall2.transpose(1,2), clu, st[:,0],
-                                   r_thresh=corr_threshold, mode='mu', device=device)
+    Wall3, _, _, _, _ = merging_function(
+        ops, Wall2.transpose(1,2), clu, st, tF,
+        corr_threshold, 'mu', check_dt=False, device=device
+        )
     Wall3 = Wall3.transpose(1,2).to(device)
     return Wall3
 
@@ -251,7 +253,8 @@ def run_matching(ops, X, U, ctc, device=torch.device('cuda')):
     return  st, amps, th_amps, Xres
 
 
-def merging_function(ops, Wall, clu, st, r_thresh=0.5, mode='ccg', device=torch.device('cuda')):
+def merging_function(ops, Wall, clu, st, tF, r_thresh=0.5, mode='ccg', check_dt=True,
+                     device=torch.device('cuda')):
     # This is the function responsible for the 'global merging' step described in the paper,
     # which checks for candidate merges between *all* pairs of clusters, based on criteria
     # of (1) high correlation of the template waveforms and (2) either a refractrory CCG, or 
@@ -285,7 +288,7 @@ def merging_function(ops, Wall, clu, st, r_thresh=0.5, mode='ccg', device=torch.
     use_shape_criterion = ops['settings']['correlogram_shape_criterion']
 
     if mode == 'ccg':
-        is_ref, est_contam_rate = CCG.refract(clu, st/ops['fs'],
+        is_ref, est_contam_rate = CCG.refract(clu, st[:,0]/ops['fs'],
                                               acg_threshold=acg_threshold,
                                               ccg_threshold=ccg_threshold)
 
@@ -317,14 +320,13 @@ def merging_function(ops, Wall, clu, st, r_thresh=0.5, mode='ccg', device=torch.
         UtU = torch.einsum('lk, jlm -> jkm',  Wnorm[kk], Wnorm)
         ctc = torch.einsum('jkm, kml -> jl', UtU, WtW)
 
-        # Compute template similarity
-        cmax = ctc.max(1)[0]
+        cmax, imax = ctc.max(1)
         cmax[kk] = 0
 
         jsort = np.argsort(cmax.cpu().numpy())[::-1]
 
         if mode == 'ccg':
-            st0 = st[clu2==kk] / ops['fs']
+            st0 = st[:,0][clu2==kk] / ops['fs']
         
         is_ccg  = 0
         for j in range(NN):
@@ -333,8 +335,7 @@ def merging_function(ops, Wall, clu, st, r_thresh=0.5, mode='ccg', device=torch.
                 break
             # compare with CCG
             if mode == 'ccg':
-                # Decide based on CCG refractoriness
-                st1 = st[clu2==jj] / ops['fs']
+                st1 = st[:,0][clu2==jj] / ops['fs']
                 _, is_ccg, _ = CCG.check_CCG(st0, st1, acg_threshold=acg_threshold,
                                              ccg_threshold=ccg_threshold, 
                                              use_shape_criterion=use_shape_criterion)        
@@ -344,9 +345,17 @@ def merging_function(ops, Wall, clu, st, r_thresh=0.5, mode='ccg', device=torch.
 
             if is_ccg:
                 is_merged[jj] = 1
+                dt = (imax[kk] -imax[jj]).item()
+                if dt != 0 and check_dt:
+                    # Get spike indices for cluster jj
+                    idx = (clu2 == jj)
+                    # Update tF and Wall with shifted features
+                    tF, Wall = roll_features(W, tF, Ww, idx, jj, dt)
+                    # Shift spike times
+                    st[idx,0] -= dt
+                
                 Ww[kk] = ns[kk]/(ns[kk]+ns[jj]) * Ww[kk] + ns[jj]/(ns[kk]+ns[jj]) * Ww[jj]            
                 Ww[jj] = 0
-
                 ns[kk] += ns[jj]
                 ns[jj] = 0
                 clu2[clu2==jj] = kk            
@@ -370,4 +379,31 @@ def merging_function(ops, Wall, clu, st, r_thresh=0.5, mode='ccg', device=torch.
     else:
         is_ref = None
 
-    return Ww.cpu(), clu2, is_ref
+    sorted_idx = np.argsort(st[:,0])
+    st = np.take_along_axis(st, sorted_idx[..., np.newaxis], axis=0)
+    clu2 = clu2[sorted_idx]
+    tensor_idx = torch.from_numpy(sorted_idx)
+    tF = tF[tensor_idx]
+
+    return Ww.cpu(), clu2, is_ref, st, tF
+
+
+def roll_features(wPCA, tF, Wall, spike_idx, clust_idx, dt):
+    W = wPCA.cpu()
+    # Project from PC space back to sample time, shift by dt
+    feats = torch.roll(tF[spike_idx] @ W, shifts=dt, dims=2)
+    temps = torch.roll(Wall[clust_idx:clust_idx+1] @ wPCA, shifts=dt, dims=2)
+
+    # For values that "rolled over the edge," set equal to next closest bin
+    if dt > 0:
+        feats[:,:,:dt] = feats[:,:,dt].unsqueeze(-1)
+        temps[:,:,:dt] = temps[:,:,dt].unsqueeze(-1)
+    elif dt < 0:
+        feats[:,:,dt:] = feats[:,:,dt-1].unsqueeze(-1)
+        temps[:,:,dt:] = temps[:,:,dt-1].unsqueeze(-1)
+
+    # Project back to PC space and update tF
+    tF[spike_idx] = feats @ W.T
+    Wall[clust_idx] = temps @ wPCA.T
+
+    return tF, Wall
