@@ -3,7 +3,8 @@
 Imports KS4 from this checkout and refuses to run if kilosort resolves anywhere else, and writes
 provenance.json with the
 commit, the working-tree diff hash, the hash of the fused-kernel library (built from
-kilosort/cuda, not tracked by git) and the settings used. Skips KS4's PNG plots.
+kilosort/cuda, not tracked by git) and the settings used. Skips KS4's PNG plots and Phy's PC
+features (pc_features.npy, pc_feature_ind.npy), which nothing in the harness reads.
 """
 import argparse
 import hashlib
@@ -44,7 +45,8 @@ untracked = git('ls-files', '--others', '--exclude-standard', '--', 'kilosort').
 kernels = cuda_kernels.LIBRARY_PATH
 t0 = time.time()
 run_kilosort(settings=settings, probe=load_probe(args.probe), filename=args.data,
-             results_dir=out, data_dtype='int16', verbose_console=True, make_plots=False)
+             results_dir=out, data_dtype='int16', verbose_console=True, make_plots=False,
+             save_pc_features=False)
 (out / 'provenance.json').write_text(json.dumps({
     'kilosort_path': kilosort.__file__,
     'commit': git('rev-parse', 'HEAD').strip(),

@@ -61,5 +61,5 @@ run them.
 3. The optimising agent reads only `summary.json` and the log's `result` records (§3). Per-unit
    scores are in each sort's `evaluation.json` and are not read during the search.
 
-A run takes about 7 minutes of GPU for the sort and under a minute for the harness. 100 runs, of
+A run takes about 4.5 minutes of GPU for the sort and under a minute for the harness. 100 runs, of
 which 15 are reserved for replication and ablation (§9).
