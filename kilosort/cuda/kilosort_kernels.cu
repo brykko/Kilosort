@@ -12,6 +12,9 @@
 #define EXPORT extern "C"
 #endif
 
+// Bump when an exported signature changes; must match KERNELS_VERSION in cuda_kernels.py.
+EXPORT int ks_version() { return 2; }
+
 #define TPB 256
 #define MAXNC 32
 #define MAXS 16
@@ -135,23 +138,136 @@ EXPORT int ks_template_match(const float* B, const int64_t* iC, const float* w, 
 }
 
 // ---------------------------------------------------------------------------------------
-// run_matching, one peel step
+// run_matching: one peel step as a few kernels, with one host sync (reading the peak count).
+// Every float operation matches the PyTorch code it replaces, so results are bit-identical,
+// except ks_matching_xres_fast, which computes the residual's template projection itself
+// instead of using cuBLAS (only used when settings['fast_matching'] is True).
 //
-// bupdate: B[u, iX[i] + d - nt] -= amp[i] * ctc[u, iY[i], d]   for d in [0, 2nt], all units u.
-//          Same float operations as the PyTorch code (rounded multiply, rounded subtract, no FMA).
-//          The caller passes a group of spikes whose windows don't overlap, so there are no races.
-// colmax:  for each column c in cols with nt <= c < NT - nt, over units u:
-//          Cf = relu(B[u,c])^2 / nm[u];  Cfmax[c] = max_u Cf,  imax[c] = first argmax.
+// peaks:   Cmax[c] = max(Cfmax[c-nt .. c+nt]) (padded with -inf, as max_pool1d). Column c is a
+//          peak if Cmax[c] > Th^2 and |Cmax[c] - Cfmax[c]| < 1e-9 (float32, as the PyTorch code).
+//          out[0] = number of peaks, out[1..] = their columns in ascending order (as torch.nonzero).
+// record:  for each peak i at column x: y = imax[x]; st[i] = (x, y); amps[i] = B[y,x] / nm[y];
+//          th_amps[i] = sqrt(Cmax[x]); iY[i] = y.
+// xres:    Xres[c, iX[i] + t - nt/2] -= amp[i] * E[c, i, t] (rounded multiply, rounded subtract),
+//          with E = einsum('ijk, jl -> kil', U[iY], W) from cuBLAS (exact path).
+// bupdate: B[u, iX[i] + d - nt] -= amp[i] * ctc[u, iY[i], d] for d in [0, 2nt], all units u.
+// colmax:  for each column c within nt of a peak (skipping the zeroed edges), over units u:
+//          Cf = relu(B[u,c])^2 / nm[u]; Cfmax[c] = max_u Cf, imax[c] = first argmax.
+//          Overlapping windows make several threads compute the same column; they write the
+//          same values.
+// Peak groups passed to xres and bupdate are KS4's interleaved groups (start j, stride n),
+// whose windows don't overlap, so their writes never race.
+
+#define MAXNTM 4096
+
+__global__ void __launch_bounds__(TPB) peaks_kernel(
+    const float* __restrict__ Cfmax, int NT, int nt, float thr, uint8_t* __restrict__ flags)
+{
+    extern __shared__ float row[];  // TPB + 2*nt
+    const int c0 = blockIdx.x * TPB;
+    for (int i = threadIdx.x; i < TPB + 2 * nt; i += TPB) {
+        const int c = c0 - nt + i;
+        row[i] = (c >= 0 && c < NT) ? Cfmax[c] : __int_as_float(0xff800000);
+    }
+    __syncthreads();
+    const int c = c0 + threadIdx.x;
+    if (c >= NT) return;
+    float m = row[threadIdx.x];
+    for (int d = 1; d <= 2 * nt; d++) m = fmaxf(m, row[threadIdx.x + d]);
+    const float v = row[threadIdx.x + nt];
+    flags[c] = (m > thr) && (fabsf(__fsub_rn(m, v)) < 1e-9f);
+}
+
+// Single block: ordered compaction of the flags.
+__global__ void compact_kernel(const uint8_t* __restrict__ flags, int NT, int64_t* __restrict__ out)
+{
+    __shared__ int counts[1024];
+    const int tid = threadIdx.x;
+    const int chunk = (NT + 1023) / 1024;
+    const int a = tid * chunk, b = min(NT, a + chunk);
+    int n = 0;
+    for (int c = a; c < b; c++) n += flags[c];
+    counts[tid] = n;
+    __syncthreads();
+    for (int off = 1; off < 1024; off <<= 1) {   // inclusive scan
+        const int x = tid >= off ? counts[tid - off] : 0;
+        __syncthreads();
+        counts[tid] += x;
+        __syncthreads();
+    }
+    int pos = counts[tid] - n;
+    for (int c = a; c < b; c++) if (flags[c]) out[1 + pos++] = c;
+    if (tid == 1023) out[0] = counts[1023];
+}
+
+__global__ void record_kernel(const float* __restrict__ B, const float* __restrict__ nm,
+                              const int64_t* __restrict__ imax, const float* __restrict__ Cfmax,
+                              const int64_t* __restrict__ iX, int nsp, int NT, int nt,
+                              int64_t* __restrict__ st, float* __restrict__ amps,
+                              float* __restrict__ th_amps, int64_t* __restrict__ iY)
+{
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= nsp) return;
+    const int64_t x = iX[i];
+    const int64_t y = imax[x];
+    float m = __int_as_float(0xff800000);
+    const int64_t lo = x - nt > 0 ? x - nt : 0;
+    const int64_t hi = x + nt < NT - 1 ? x + nt : NT - 1;
+    for (int64_t c = lo; c <= hi; c++) m = fmaxf(m, Cfmax[c]);
+    st[2 * (int64_t)i] = x;
+    st[2 * (int64_t)i + 1] = y;
+    amps[i] = __fdiv_rn(B[y * NT + x], nm[y]);
+    th_amps[i] = __fsqrt_rn(m);
+    iY[i] = y;
+}
+
+// E is (C, ng, ntw) contiguous; group spike q is peak j + q*n (pointers already offset by j).
+__global__ void xres_kernel(float* __restrict__ Xres, const float* __restrict__ E,
+                            const int64_t* __restrict__ iX, const float* __restrict__ amp,
+                            int ng, int stride, int C, int NT, int ntw)
+{
+    const int64_t q = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;  // (c, i, t), t fastest
+    if (q >= (int64_t)C * ng * ntw) return;
+    const int t = (int)(q % ntw);
+    const int i = (int)((q / ntw) % ng);
+    const int c = (int)(q / ((int64_t)ntw * ng));
+    const int64_t col = iX[(int64_t)i * stride] + t - ntw / 2;
+    const float v = __fmul_rn(amp[(int64_t)i * stride], E[q]);
+    float* p = &Xres[(int64_t)c * NT + col];
+    *p = __fsub_rn(*p, v);
+}
+
+// Fast path: E[c, i, t] = sum_p U[iY_i, p, c] * W[p, t] computed here (sequential FMA),
+// so it can differ from cuBLAS at float rounding.
+__global__ void xres_fast_kernel(float* __restrict__ Xres, const float* __restrict__ U,
+                                 const float* __restrict__ W, const int64_t* __restrict__ iX,
+                                 const int64_t* __restrict__ iY, const float* __restrict__ amp,
+                                 int ng, int stride, int C, int NT, int ntw, int npc)
+{
+    const int64_t q = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;  // (c, i, t), t fastest
+    if (q >= (int64_t)C * ng * ntw) return;
+    const int t = (int)(q % ntw);
+    const int i = (int)((q / ntw) % ng);
+    const int c = (int)(q / ((int64_t)ntw * ng));
+    const int64_t y = iY[(int64_t)i * stride];
+    float e = 0.f;
+    for (int p = 0; p < npc; p++) e = fmaf(U[(y * npc + p) * C + c], W[p * ntw + t], e);
+    const int64_t col = iX[(int64_t)i * stride] + t - ntw / 2;
+    const float v = __fmul_rn(amp[(int64_t)i * stride], e);
+    float* x = &Xres[(int64_t)c * NT + col];
+    *x = __fsub_rn(*x, v);
+}
 
 __global__ void bupdate_kernel(float* __restrict__ B, const float* __restrict__ ctc,
                                const int64_t* __restrict__ iX, const int64_t* __restrict__ iY,
-                               const float* __restrict__ amp, int nsp, int NU, int NT, int nt)
+                               const float* __restrict__ amp, int ng, int stride, int NU, int NT, int nt)
 {
     const int u = blockIdx.y;
     const int W = 2 * nt + 1;
     const int64_t q = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;  // (spike, d), d fastest
-    if (q >= (int64_t)nsp * W) return;
-    const int i = (int)(q / W), d = (int)(q % W);
+    if (q >= (int64_t)ng * W) return;
+    const int64_t i = (q / W) * stride;
+    const int d = (int)(q % W);
     const int64_t col = iX[i] + d - nt;
     const float v = __fmul_rn(amp[i], ctc[((int64_t)u * NU + iY[i]) * W + d]);
     float* p = &B[(int64_t)u * NT + col];
@@ -159,12 +275,13 @@ __global__ void bupdate_kernel(float* __restrict__ B, const float* __restrict__ 
 }
 
 __global__ void colmax_kernel(const float* __restrict__ B, const float* __restrict__ nm,
-                              const int64_t* __restrict__ cols, int ncols, int NU, int NT, int nt,
+                              const int64_t* __restrict__ iX, int nsp, int NU, int NT, int nt,
                               float* __restrict__ Cfmax, int64_t* __restrict__ imax)
 {
-    const int q = blockIdx.x * blockDim.x + threadIdx.x;
-    if (q >= ncols) return;
-    const int64_t c = cols[q];
+    const int W = 2 * nt + 1;
+    const int64_t q = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (q >= (int64_t)nsp * W) return;
+    const int64_t c = iX[q / W] + (q % W) - nt;
     if (c < nt || c >= NT - nt) return;  // these columns are zeroed and never change
     float best = -1.f;
     int bi = 0;
@@ -177,21 +294,59 @@ __global__ void colmax_kernel(const float* __restrict__ B, const float* __restri
     imax[c] = bi;
 }
 
-EXPORT int ks_matching_bupdate(float* B, const float* ctc, const int64_t* iX, const int64_t* iY,
-                               const float* amp, int nsp, int NU, int NT, int nt)
+EXPORT int ks_matching_peaks(const float* Cfmax, int NT, int nt, float thr, uint8_t* flags, int64_t* out)
 {
-    if (nsp == 0) return 0;
-    if (NU > 65535) return -1;
-    const int W = 2 * nt + 1;
-    dim3 grid((unsigned)(((int64_t)nsp * W + 255) / 256), NU);
-    bupdate_kernel<<<grid, 256>>>(B, ctc, iX, iY, amp, nsp, NU, NT, nt);
+    if (nt > MAXNTM) return -1;
+    const size_t shmem = (TPB + 2 * nt) * sizeof(float);
+    peaks_kernel<<<(NT + TPB - 1) / TPB, TPB, shmem>>>(Cfmax, NT, nt, thr, flags);
+    compact_kernel<<<1, 1024>>>(flags, NT, out);
     return (int)cudaGetLastError();
 }
 
-EXPORT int ks_matching_colmax(const float* B, const float* nm, const int64_t* cols, int ncols,
+EXPORT int ks_matching_record(const float* B, const float* nm, const int64_t* imax, const float* Cfmax,
+                              const int64_t* iX, int nsp, int NT, int nt, int64_t* st, float* amps,
+                              float* th_amps, int64_t* iY)
+{
+    if (nsp == 0) return 0;
+    record_kernel<<<(nsp + 255) / 256, 256>>>(B, nm, imax, Cfmax, iX, nsp, NT, nt, st, amps, th_amps, iY);
+    return (int)cudaGetLastError();
+}
+
+EXPORT int ks_matching_xres(float* Xres, const float* E, const int64_t* iX, const float* amp,
+                            int ng, int stride, int C, int NT, int ntw)
+{
+    if (ng == 0) return 0;
+    const int64_t n = (int64_t)C * ng * ntw;
+    xres_kernel<<<(unsigned)((n + 255) / 256), 256>>>(Xres, E, iX, amp, ng, stride, C, NT, ntw);
+    return (int)cudaGetLastError();
+}
+
+EXPORT int ks_matching_xres_fast(float* Xres, const float* U, const float* W, const int64_t* iX,
+                                 const int64_t* iY, const float* amp, int ng, int stride, int C,
+                                 int NT, int ntw, int npc)
+{
+    if (ng == 0) return 0;
+    const int64_t n = (int64_t)C * ng * ntw;
+    xres_fast_kernel<<<(unsigned)((n + 255) / 256), 256>>>(Xres, U, W, iX, iY, amp, ng, stride, C, NT, ntw, npc);
+    return (int)cudaGetLastError();
+}
+
+EXPORT int ks_matching_bupdate(float* B, const float* ctc, const int64_t* iX, const int64_t* iY,
+                               const float* amp, int ng, int stride, int NU, int NT, int nt)
+{
+    if (ng == 0) return 0;
+    if (NU > 65535) return -1;
+    const int W = 2 * nt + 1;
+    dim3 grid((unsigned)(((int64_t)ng * W + 255) / 256), NU);
+    bupdate_kernel<<<grid, 256>>>(B, ctc, iX, iY, amp, ng, stride, NU, NT, nt);
+    return (int)cudaGetLastError();
+}
+
+EXPORT int ks_matching_colmax(const float* B, const float* nm, const int64_t* iX, int nsp,
                               int NU, int NT, int nt, float* Cfmax, int64_t* imax)
 {
-    if (ncols == 0) return 0;
-    colmax_kernel<<<(ncols + 127) / 128, 128>>>(B, nm, cols, ncols, NU, NT, nt, Cfmax, imax);
+    if (nsp == 0) return 0;
+    const int64_t n = (int64_t)nsp * (2 * nt + 1);
+    colmax_kernel<<<(unsigned)((n + 127) / 128), 128>>>(B, nm, iX, nsp, NU, NT, nt, Cfmax, imax);
     return (int)cudaGetLastError();
 }

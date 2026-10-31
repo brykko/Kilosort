@@ -319,6 +319,20 @@ EXTRA_PARAMETERS = {
         """
     },
 
+    'fast_matching': {
+        'gui_name': 'fast matching', 'type': bool, 'min': None, 'max': None,
+        'exclude': [], 'default': False, 'step': 'spike detection',
+        'description':
+            """
+            If True (and the fused CUDA kernels are built), compute the residual
+            update in the matching pursuit step with a custom kernel instead of
+            cuBLAS. Faster, but the PC features can differ from the default at
+            float rounding, which can change clustering slightly. Spike detection
+            itself is unaffected. With False, results are bit-identical to the
+            PyTorch code.
+            """
+    },
+
     'templates_from_data': {
         'gui_name': 'templates from data', 'type': bool, 'min': None, 'max': None,
         'exclude': [], 'default': True, 'step': 'spike detection',
