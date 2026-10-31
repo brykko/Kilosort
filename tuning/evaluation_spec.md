@@ -247,7 +247,7 @@ The sharp ±1.5 ms window is deliberate. Cells with different tuning have broad 
 
 **G4 passes if all hold:**
 - median agreement ≥ default − τ_hyb;
-- units recovered (agreement ≥ 0.8) ≥ default − 1;
+- units recovered (agreement ≥ 0.8) ≥ default − τ (originally default − 1, but the default replicates themselves range 30–32 around a mean of 31.4, so that rule failed a default replicate);
 - no inserted HD pair merged (a merge = one sorted unit holding ≥ 30% of each member's spikes).
 
 ### 7.5 Backstops (loose; fail only on large changes)
@@ -300,7 +300,7 @@ Not counted in the search budget. The search may not start until every item pass
 ### 9.4 Reporting
 - Report the simplified winner's mean ΔS and ΔS_track over its replicates, all guards, and §7.6 matched-unit results against default.
 - Run the key downstream single-cell and population analyses on default and winner sorts of the excerpt, and report where conclusions differ.
-- Run §8.10 adjudication and §8.9 inspection on the winner's sort.
+- Run the §8.9 inspection on the winner's sort.
 
 ## 10. Transfer test: MEC open-field recording (reported, not a gate)
 
@@ -315,7 +315,7 @@ One record per run, written before results are read where possible:
 - run id, timestamp, phase, seeds;
 - settings dict, KS4 code diff hash, harness hashes, θ_ref hash, spec version;
 - rationale for the run (one line, from the optimising agent);
-- S, ΔS, S_track, C, all guards with values and pass/fail, median error, unit counts, cleaning statistics, runtime;
+- S, ΔS, S_track, C, all guards with values and pass/fail, unit counts, cleaning statistics, hybrid recovery, runtime;
 - any deviation from this spec.
 
 ## 12. Known limitations

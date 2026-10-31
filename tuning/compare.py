@@ -76,10 +76,12 @@ def guards(cand, defaults):
             return []
         m = np.array([e['hybrid']['median_agreement'] for e in defaults])
         tau = float(2 * m.std(ddof=1)) if m.size > 1 else None
-        rec = float(np.mean([e['hybrid']['n_recovered'] for e in defaults]))
+        r = np.array([e['hybrid']['n_recovered'] for e in defaults], float)
+        tau_r = float(2 * r.std(ddof=1)) if r.size > 1 else None
         return [check('G4 hybrid median agreement', cand['hybrid']['median_agreement'], float(m.mean()),
                       lambda v, d, t: v >= d - t, tau),
-                check('G4 hybrid units recovered', cand['hybrid']['n_recovered'], rec, lambda v, d, t: v >= d - 1),
+                check('G4 hybrid units recovered', cand['hybrid']['n_recovered'], float(r.mean()),
+                      lambda v, d, t: v >= d - t, tau_r),
                 check('G4 hybrid HD pairs merged', len(cand['hybrid']['merged_pairs']), 0, lambda v, d, t: v == 0)]
 
     vals = lambda e: np.array(list(e['S_i'].values()))
