@@ -270,9 +270,10 @@ def _sort(filename, results_dir, probe, settings, data_dtype, device, do_CAR,
 
         # Set preprocessing and drift correction parameters
         ops = compute_preprocessing(ops, device, tic0=tic0, file_object=file_object)
-        np.random.seed(1)
-        torch.cuda.manual_seed_all(1)
-        torch.random.manual_seed(1) 
+        seed = ops['settings']['random_seed']
+        np.random.seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.random.manual_seed(seed)
         ops, bfile, st0 = compute_drift_correction(
             ops, device, tic0=tic0, progress_bar=progress_bar,
             file_object=file_object, clear_cache=clear_cache,

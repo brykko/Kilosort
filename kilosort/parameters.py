@@ -454,6 +454,17 @@ EXTRA_PARAMETERS = {
             """
     },
 
+    'random_seed': {
+        'gui_name': 'random seed', 'type': int, 'min': 0, 'max': np.inf,
+        'exclude': [], 'default': 1, 'step': 'clustering',
+        'description':
+            """
+            Seed for the numpy and torch random number generators, set before
+            drift correction. Changing it (together with `cluster_init_seed`)
+            gives an independent replicate of the same sort.
+            """
+    },
+
     'cluster_init_seed': {
         'gui_name': 'cluster init seed', 'type': int, 'min': 1, 'max': np.inf,
         'exclude': [], 'default': 5, 'step': 'clustering',
