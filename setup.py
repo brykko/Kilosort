@@ -5,6 +5,7 @@ install_deps = [
     'numpy>=1.20.0',
     'scipy',
     'scikit-learn',
+    'threadpoolctl',
     'tqdm',
     'torch>=2.1.0',
     'numba',

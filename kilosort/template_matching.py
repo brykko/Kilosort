@@ -5,7 +5,7 @@ import torch
 from torch.nn.functional import conv1d, max_pool2d, max_pool1d
 from tqdm import tqdm
 
-from kilosort import CCG
+from kilosort import CCG, cuda_kernels
 from kilosort.utils import log_performance
 
 logger = logging.getLogger(__name__)
@@ -191,18 +191,23 @@ def run_matching(ops, X, U, ctc, device=torch.device('cuda')):
     Xres = X.clone()
     lam = 20
 
+    fused = cuda_kernels.available(device)
+    if fused:
+        B = B.contiguous()
+        nm = nm.contiguous()
+        ctc = ctc.contiguous()
+    NT = B.shape[1]
+
+    # Cf is shape (n_units, n_times). Its max over units is computed in full once;
+    # after that each peel only changes B within nt samples of the spikes it found,
+    # so only those columns are recomputed.
+    Cf = torch.relu(B)**2 /nm.unsqueeze(-1)
+    Cf[:, :nt] = 0
+    Cf[:, -nt:] = 0
+    Cfmax, imax = torch.max(Cf, 0)
+    del Cf
+
     for t in range(max_peels):
-        # Cf = 2 * B - nm.unsqueeze(-1) 
-        # Cf is shape (n_units, n_times)
-        Cf = torch.relu(B)**2 /nm.unsqueeze(-1)
-        #a = 1 + lam
-        #b = torch.relu(B) + lam * mu.unsqueeze(-1)
-        #Cf = b**2 / a - lam * mu.unsqueeze(-1)**2
-
-        Cf[:, :nt] = 0
-        Cf[:, -nt:] = 0
-
-        Cfmax, imax = torch.max(Cf, 0)
         Cmax  = max_pool1d(Cfmax.unsqueeze(0).unsqueeze(0), (2*nt+1), stride=1, padding=(nt))
 
         #print(Cfmax.shape)
@@ -230,12 +235,31 @@ def run_matching(ops, X, U, ctc, device=torch.device('cuda')):
 
         k+= nsp
 
-        #amp = B[iY,iX] 
+        #amp = B[iY,iX]
 
+        # Spikes are subtracted in n interleaved groups so that the windows within
+        # a group don't overlap (overlapping indexed writes would race). Peaks are
+        # normally more than nt apart, so n = 2 suffices; tied peaks can be closer,
+        # and then more groups are needed.
         n = 2
+        while nsp > n and bool((iX[n:,0] - iX[:-n,0] <= 2*nt).any()):
+            n += 1
         for j in range(n):
             Xres[:, iX[j::n] + tiwave]  -= amp[j::n] * torch.einsum('ijk, jl -> kil', U[iY[j::n,0]], W)
-            B[   :, iX[j::n] + trange]  -= amp[j::n] * ctc[:,iY[j::n,0],:]
+            if fused:
+                cuda_kernels.matching_bupdate(
+                    B, ctc, iX[j::n,0].contiguous(), iY[j::n,0].contiguous(),
+                    amp[j::n,0].contiguous(), nt
+                    )
+            else:
+                B[:, iX[j::n] + trange]  -= amp[j::n] * ctc[:,iY[j::n,0],:]
+
+        cols = torch.unique(iX + trange)
+        if fused:
+            cuda_kernels.matching_colmax(B, nm, cols, nt, Cfmax, imax)
+        else:
+            cols = cols[(cols >= nt) & (cols < NT - nt)]
+            Cfmax[cols], imax[cols] = torch.max(torch.relu(B[:, cols])**2 / nm.unsqueeze(-1), 0)
 
     st = st[:k]
     amps = amps[:k]

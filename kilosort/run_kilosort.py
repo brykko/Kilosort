@@ -36,7 +36,8 @@ def run_kilosort(settings, probe=None, probe_name=None, filename=None,
                  data_dtype=None, do_CAR=True, invert_sign=False, device=None,
                  progress_bar=None, save_extra_vars=False, clear_cache=False,
                  save_preprocessed_copy=False, bad_channels=None, shank_idx=None,
-                 verbose_console=False, verbose_log=False, torch_thread_lim=None):
+                 verbose_console=False, verbose_log=False, torch_thread_lim=None,
+                 make_plots=True):
     """Run full spike sorting pipeline on specified data.
     
     Parameters
@@ -123,6 +124,10 @@ def run_kilosort(settings, probe=None, probe_name=None, filename=None,
     torch_thread_lim : int; optional.
         If set, this will limit the number of pytorch threads on CPU.
         See docs for `torch.set_num_threads`.
+    make_plots : bool; default=True.
+        If False, skip the drift, diagnostic and spike position plots (PNG files in
+        `results_dir`). Making them takes ~2-3 minutes for a 20-minute
+        Neuropixels recording and doesn't change the sorting results.
     
     Raises
     ------
@@ -190,6 +195,7 @@ def run_kilosort(settings, probe=None, probe_name=None, filename=None,
                 _filename, _results_dir, _probe, settings, data_dtype, device,
                 do_CAR, clear_cache, invert_sign, save_preprocessed_copy,
                 verbose_log, save_extra_vars, file_object, progress_bar,
+                make_plots=make_plots,
             )
 
     return ops, st, clu, tF, Wall, similar_templates, \
@@ -198,7 +204,8 @@ def run_kilosort(settings, probe=None, probe_name=None, filename=None,
 
 def _sort(filename, results_dir, probe, settings, data_dtype, device, do_CAR,
           clear_cache, invert_sign, save_preprocessed_copy, verbose_log,
-          save_extra_vars, file_object, progress_bar, gui_sorter=None):
+          save_extra_vars, file_object, progress_bar, gui_sorter=None,
+          make_plots=True):
     """Run sorting pipeline. See `run_kilosort` for documentation.
     
     Notes
@@ -288,9 +295,9 @@ def _sort(filename, results_dir, probe, settings, data_dtype, device, do_CAR,
             log_performance(logger, 'info', 'Resource usage after saving preprocessing.',
                             reset=True)
 
-        logger.info('Generating drift plots ...')
         # st0 will be None if nblocks = 0 (no drift correction)
-        if st0 is not None:
+        if st0 is not None and (make_plots or gui_sorter is not None):
+            logger.info('Generating drift plots ...')
             if gui_sorter is not None:
                 gui_sorter.dshift = ops['dshift']
                 gui_sorter.st0 = st0
@@ -307,13 +314,14 @@ def _sort(filename, results_dir, probe, settings, data_dtype, device, do_CAR,
 
         log_thread_count(logger)
 
-        logger.info('Generating diagnostic plots ...')
         if gui_sorter is not None:
+            logger.info('Generating diagnostic plots ...')
             gui_sorter.Wall0 = Wall0
             gui_sorter.wPCA = torch.clone(ops['wPCA'].cpu()).numpy()
             gui_sorter.clu0 = clu0
             gui_sorter.plotDataReady.emit('diagnostics')
-        else:
+        elif make_plots:
+            logger.info('Generating diagnostic plots ...')
             kplots.plot_diagnostics(Wall0, clu0, ops, results_dir)
 
         clu, Wall, st, tF = cluster_spikes(
@@ -335,12 +343,13 @@ def _sort(filename, results_dir, probe, settings, data_dtype, device, do_CAR,
 
         log_thread_count(logger)
 
-        logger.info('Generating spike position plot ...')
         if gui_sorter is not None:
+            logger.info('Generating spike position plot ...')
             gui_sorter.clu = clu[kept_spikes]
             gui_sorter.is_refractory = is_ref
             gui_sorter.plotDataReady.emit('probe')
-        else:
+        elif make_plots:
+            logger.info('Generating spike position plot ...')
             kplots.plot_spike_positions(clu[kept_spikes], is_ref, results_dir)
         logger.info('Sorting finished.')
         log_sorting_summary(ops, log=logger, level='info')

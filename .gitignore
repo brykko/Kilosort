@@ -5,6 +5,9 @@ __pycache__/
 
 # C extensions
 *.so
+kilosort/cuda/*.dll
+kilosort/cuda/*.exp
+kilosort/cuda/*.lib
 
 # Distribution / packaging
 .Python

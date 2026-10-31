@@ -790,8 +790,9 @@ class BinaryRWFile:
         """ read batches from file """
         ibatch *= self.batch_downsampling
         bstart, bend = self._get_batch_edges(ibatch)
+        # Kept as (samples, channels) and transposed on the device: copying the
+        # transposed (strided) array to the GPU is several times slower.
         data = self.file[bstart : bend]
-        data = data.T
 
         if self.dtype == 'uint16':
             # Shift data to +/- 2**15
@@ -804,25 +805,26 @@ class BinaryRWFile:
         if self.shift is not None:
             data = data + self.shift
 
-        nsamp = data.shape[-1]
+        nsamp = data.shape[0]
         X = torch.zeros((self.n_chan_bin, self.NT + 2*self.nt), device=self.device)
 
         with warnings.catch_warnings():
             # Don't need this, we know about the warning and it doesn't cause
             # any problems. Doing this the "correct" way is much slower.
             warnings.filterwarnings("ignore", message=_torch_warning)
+            data = torch.from_numpy(np.ascontiguousarray(data)).to(self.device).T.float()
 
             # fix the data at the edges for the first and last batch
             if ibatch == 0:
-                X[:, self.nt : self.nt+nsamp] = torch.from_numpy(data).to(self.device).float()
+                X[:, self.nt : self.nt+nsamp] = data
                 X[:, :self.nt] = X[:, self.nt : self.nt+1]
                 bstart = self.imin - self.nt
             elif ibatch == self.n_batches-1:
-                X[:, :nsamp] = torch.from_numpy(data).to(self.device).float()
+                X[:, :nsamp] = data
                 X[:, nsamp:] = X[:, nsamp-1:nsamp]
                 bend += self.nt
             else:
-                X[:] = torch.from_numpy(data).to(self.device).float()
+                X[:] = data
 
         inds = [bstart, bend]
         if return_inds:

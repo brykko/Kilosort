@@ -9,8 +9,10 @@ import numpy as np
 import torch
 from sklearn.cluster import KMeans
 from sklearn.decomposition import TruncatedSVD
+from threadpoolctl import threadpool_limits
 from tqdm import tqdm
 
+from kilosort import cuda_kernels
 from kilosort.utils import template_path, log_performance
 
 
@@ -69,7 +71,11 @@ def extract_wPCA_wTEMP(ops, bfile, nt=61, twav_min=20, Th_single_ch=6, nskip=25,
     clips = clips[:i]
     clips /= (clips**2).sum(1, keepdims=True)**.5
 
-    model = TruncatedSVD(n_components=ops['settings']['n_pcs']).fit(clips)
+    # SVD and KMeans below run single-threaded: with several threads the results
+    # can vary slightly from run to run (reduction order), and that makes the
+    # whole sort non-reproducible.
+    with threadpool_limits(limits=1):
+        model = TruncatedSVD(n_components=ops['settings']['n_pcs']).fit(clips)
     wPCA = torch.from_numpy(model.components_).to(device).float()
 
     with warnings.catch_warnings():
@@ -81,7 +87,8 @@ def extract_wPCA_wTEMP(ops, bfile, nt=61, twav_min=20, Th_single_ch=6, nskip=25,
         if nthread is not None:
             new_nthread = min(int(nthread), new_nthread)
         os.environ['OMP_NUM_THREADS'] = str(new_nthread)
-        model = KMeans(n_clusters=ops['settings']['n_templates'], n_init = 10).fit(clips)
+        with threadpool_limits(limits=1):
+            model = KMeans(n_clusters=ops['settings']['n_templates'], n_init = 10).fit(clips)
         wTEMP = torch.from_numpy(model.cluster_centers_).to(device).float()
         wTEMP = wTEMP / (wTEMP**2).sum(1).unsqueeze(1)**.5
         if nthread is not None:
@@ -147,7 +154,14 @@ def template_match(X, ops, iC, iC2, weigh, device=torch.device('cuda')):
     ti = torch.arange(Nfilt, device = device)
     tj = torch.arange(nb, device = device)
 
-    for t in range(niter):
+    # The fused kernel computes the same As and imaxs, and Amaxs wherever it's used
+    # below, without the large intermediate A. Falls back to the loop if unavailable.
+    fused = cuda_kernels.available(device) and cuda_kernels.template_match(
+        B.contiguous(), iC.contiguous(), weigh.contiguous(), As, imaxs,
+        iC2.contiguous(), Amaxs, ops['Th_universal'], nt0
+        )
+
+    for t in range(0 if fused else niter):
         A = torch.einsum('ijk, jklm-> iklm', weigh, B[iC,:, nb*t:nb*(t+1)])        
         A = A.transpose(1,2)
         A = A.reshape(-1, Nfilt, A.shape[-1])
