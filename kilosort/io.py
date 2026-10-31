@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from typing import Tuple, Union
 import os, shutil
+import threading
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 import time
@@ -247,7 +248,8 @@ def select_shank(probe, shank_idx):
 
 def save_to_phy(st, clu, tF, Wall, probe, ops, imin, results_dir=None,
                 data_dtype=None, save_extra_vars=False,
-                save_preprocessed_copy=False, skip_dat_path=False):
+                save_preprocessed_copy=False, skip_dat_path=False,
+                save_pc_features=True):
     """Save sorting results to disk in a format readable by Phy.
 
     Parameters
@@ -289,6 +291,9 @@ def save_to_phy(st, clu, tF, Wall, probe, ops, imin, results_dir=None,
         has an unexpected format, like when using a `file_object` loaded from
         an external data format through SpikeInterface. The full filename(s) will
         still be included in `params.py` for reference, but will be commented out.
+    save_pc_features : bool; default=True.
+        If False, don't compute or save `pc_features.npy` and `pc_feature_ind.npy`.
+        Phy needs them; nothing else in the results depends on them.
 
     
     Returns
@@ -380,7 +385,7 @@ def save_to_phy(st, clu, tF, Wall, probe, ops, imin, results_dir=None,
     templates = templates.transpose(0,2,1)
     templates_ind = np.tile(np.arange(Wall.shape[1])[np.newaxis, :], (templates.shape[0],1))
     np.save((results_dir / 'similar_templates.npy'), similar_templates)
-    np.save((results_dir / 'templates.npy'), templates)
+    np.save((results_dir / 'templates.npy'), np.ascontiguousarray(templates))
     np.save((results_dir / 'templates_ind.npy'), templates_ind)
     log_performance(logger, level='debug', header='save_to_phy, template props',
                     reset=True)
@@ -389,14 +394,17 @@ def save_to_phy(st, clu, tF, Wall, probe, ops, imin, results_dir=None,
     if save_extra_vars:
         # Save tF first since it gets updated in-place
         np.save(results_dir / 'tF.npy', tF.cpu().numpy())
-    # This will momentarily copy tF which is pretty large, but it's on CPU
-    # so the extra memory hopefully won't be an issue.
-    tF = tF[kept_spikes]
-    pc_features, pc_feature_ind = make_pc_features(
-        ops, spike_templates, spike_clusters, tF
-        )
-    np.save(results_dir / 'pc_features.npy', pc_features)
-    np.save(results_dir / 'pc_feature_ind.npy', pc_feature_ind)
+    if save_pc_features:
+        # This will momentarily copy tF which is pretty large, but it's on CPU
+        # so the extra memory hopefully won't be an issue.
+        tF = tF[kept_spikes]
+        pc_features, pc_feature_ind = make_pc_features(
+            ops, spike_templates, spike_clusters, tF
+            )
+        # Saved from a contiguous copy: same bytes, ~10x faster than letting
+        # np.save walk the permuted tensor element by element.
+        np.save(results_dir / 'pc_features.npy', pc_features.contiguous().numpy())
+        np.save(results_dir / 'pc_feature_ind.npy', pc_feature_ind)
     log_performance(logger, level='debug', header='save_to_phy, pc features',
                     reset=True)
 
@@ -555,6 +563,89 @@ def bfile_from_ops(ops=None, ops_path=None, filename=None, device=None):
         )
 
     return bfile
+
+
+class _BatchReader:
+    """Reads batch rows of a single binary file with `readinto()` into reusable
+    (pinned, on CUDA) buffers, and reads the next batch on a background thread.
+
+    Copying a slice of a freshly opened np.memmap page-faults every page, which
+    is ~3x slower than `readinto()`; prefetching then hides the read behind the
+    GPU work on the current batch. The bytes are the same as the memmap slice.
+    The next batch is guessed from the step between the last two calls, so both
+    sequential passes and strided reads (every 25th batch) are prefetched.
+    """
+
+    n_buffers = 3
+
+    def __init__(self, bfile):
+        f = bfile.filename
+        self.path = str(f[0] if isinstance(f, list) else f)
+        self.edges = bfile._get_batch_edges
+        self.n_batches_raw = bfile.n_batches_raw
+        self.row_bytes = bfile.n_chan_bin * np.dtype(bfile.dtype).itemsize
+        self.cuda = torch.device(bfile.device).type == 'cuda'
+        dtype = torch.from_numpy(np.empty(0, dtype=bfile.dtype)).dtype
+        shape = (int(bfile.NT + 2*bfile.nt), bfile.n_chan_bin)
+        self.buffers = [torch.empty(shape, dtype=dtype, pin_memory=self.cuda)
+                        for _ in range(self.n_buffers)]
+        self.events = [None] * self.n_buffers
+        self.next_slot = 0
+        self.pending = None   # (ibatch, slot, future) of the prefetched batch
+        self.last = None
+        self.pool = ThreadPoolExecutor(1)
+        self.local = threading.local()   # one file handle per thread
+
+    def _take_slot(self):
+        slot = self.next_slot
+        self.next_slot = (slot + 1) % self.n_buffers
+        if self.events[slot] is not None:
+            # Wait until the previous copy out of this buffer has finished.
+            self.events[slot].synchronize()
+            self.events[slot] = None
+        return slot
+
+    def _read(self, slot, bstart, bend):
+        f = getattr(self.local, 'f', None)
+        if f is None:
+            f = self.local.f = open(self.path, 'rb', buffering=0)
+        rows = self.buffers[slot][:int(bend - bstart)]
+        view = memoryview(rows.numpy()).cast('B')
+        f.seek(int(bstart) * self.row_bytes)
+        got = 0
+        while got < view.nbytes:
+            n = f.readinto(view[got:])
+            if not n:
+                raise EOFError(f'Unexpected end of {self.path} at byte {f.tell()}')
+            got += n
+        return rows
+
+    def get(self, ibatch, bstart, bend):
+        """Rows [bstart, bend) of batch `ibatch`, and the buffer slot holding them.
+        Call `copied(slot)` once the rows have been copied to the device."""
+        if self.pending is not None and self.pending[0] == ibatch:
+            _, slot, future = self.pending
+            rows = future.result()
+        else:
+            if self.pending is not None:
+                self.pending[2].result()   # don't refill a buffer mid-read
+            slot = self._take_slot()
+            rows = self._read(slot, bstart, bend)
+        self.pending = None
+
+        step = ibatch - self.last if self.last is not None and ibatch > self.last else 1
+        self.last = ibatch
+        nxt = ibatch + step
+        if nxt < self.n_batches_raw:
+            s = self._take_slot()
+            a, b = self.edges(nxt)
+            self.pending = (nxt, s, self.pool.submit(self._read, s, a, b))
+        return rows, slot
+
+    def copied(self, slot):
+        if self.cuda:
+            self.events[slot] = torch.cuda.Event()
+            self.events[slot].record()
 
 
 class BinaryRWFile:
@@ -786,33 +877,56 @@ class BinaryRWFile:
         self.batch_downsampling = downsampling
         self.n_batches = np.int64(self.n_batches_raw / self.batch_downsampling)
 
+    def _direct_read(self):
+        """True if batches can be read straight from a single file with no
+        conversion, using `_BatchReader` instead of a memmap."""
+        if not hasattr(self, '_reader'):
+            self._reader = None
+            if (self.file_object is None and not self.writable
+                    and str(self.dtype) in ('int16', 'int32', 'float32')
+                    and self.scale is None and self.shift is None):
+                self._reader = _BatchReader(self)
+        return self._reader is not None
+
     def padded_batch_to_torch(self, ibatch, return_inds=False):
         """ read batches from file """
         ibatch *= self.batch_downsampling
         bstart, bend = self._get_batch_edges(ibatch)
-        # Kept as (samples, channels) and transposed on the device: copying the
-        # transposed (strided) array to the GPU is several times slower.
-        data = self.file[bstart : bend]
 
-        if self.dtype == 'uint16':
-            # Shift data to +/- 2**15
-            data = data.astype('float32')
-            data = data - 2**15
+        slot = None
+        if self._direct_read():
+            data, slot = self._reader.get(ibatch, bstart, bend)
+        else:
+            data = self.file[bstart : bend]
 
-        # Typically only need to be used with float32 data
-        if self.scale is not None:
-            data = data * self.scale
-        if self.shift is not None:
-            data = data + self.shift
+            if self.dtype == 'uint16':
+                # Shift data to +/- 2**15
+                data = data.astype('float32')
+                data = data - 2**15
+
+            # Typically only need to be used with float32 data
+            if self.scale is not None:
+                data = data * self.scale
+            if self.shift is not None:
+                data = data + self.shift
+
+            with warnings.catch_warnings():
+                # Don't need this, we know about the warning and it doesn't cause
+                # any problems. Doing this the "correct" way is much slower.
+                warnings.filterwarnings("ignore", message=_torch_warning)
+                data = torch.from_numpy(np.ascontiguousarray(data))
 
         nsamp = data.shape[0]
         X = torch.zeros((self.n_chan_bin, self.NT + 2*self.nt), device=self.device)
 
         with warnings.catch_warnings():
-            # Don't need this, we know about the warning and it doesn't cause
-            # any problems. Doing this the "correct" way is much slower.
             warnings.filterwarnings("ignore", message=_torch_warning)
-            data = torch.from_numpy(np.ascontiguousarray(data)).to(self.device).T.float()
+            # Kept as (samples, channels) and transposed on the device: copying the
+            # transposed (strided) array to the GPU is several times slower.
+            data = data.to(self.device, non_blocking=True)
+            if slot is not None:
+                self._reader.copied(slot)
+            data = data.T.float()
 
             # fix the data at the edges for the first and last batch
             if ibatch == 0:

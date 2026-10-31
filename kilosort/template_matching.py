@@ -293,6 +293,13 @@ def merging_function(ops, Wall, clu, st, tF, r_thresh=0.5, mode='ccg', check_dt=
     WtW = conv1d(W.reshape(-1, 1,nt), W.reshape(-1, 1 ,nt), padding = nt) 
     WtW = torch.flip(WtW, [2,])
 
+    # Spike indices of each cluster, ascending (a stable sort), kept up to date
+    # through merges, instead of a boolean mask over all spikes per lookup.
+    order = np.argsort(clu2, kind='stable')
+    bounds = np.concatenate(([0], np.cumsum(np.bincount(clu2, minlength=NN))))
+    members = [order[bounds[c]:bounds[c+1]] for c in range(NN)]
+    r_thresh32 = np.float32(r_thresh)   # cmax is float32, as torch compares it
+
     t = 0
     nmerge = 0
     while t<NN:
@@ -318,19 +325,20 @@ def merging_function(ops, Wall, clu, st, tF, r_thresh=0.5, mode='ccg', check_dt=
         cmax, imax = ctc.max(1)
         cmax[kk] = 0
 
-        jsort = np.argsort(cmax.cpu().numpy())[::-1]
+        cmax_np = cmax.cpu().numpy()
+        jsort = np.argsort(cmax_np)[::-1]
 
         if mode == 'ccg':
-            st0 = st[:,0][clu2==kk] / ops['fs']
-        
+            st0 = st[members[kk],0] / ops['fs']
+
         is_ccg  = 0
         for j in range(NN):
             jj = jsort[j]
-            if cmax[jj] < r_thresh:
+            if cmax_np[jj] < r_thresh32:
                 break
             # compare with CCG
             if mode == 'ccg':
-                st1 = st[:,0][clu2==jj] / ops['fs']
+                st1 = st[members[jj],0] / ops['fs']
                 _, is_ccg, _ = CCG.check_CCG(st0, st1, acg_threshold=acg_threshold,
                                              ccg_threshold=ccg_threshold)        
             else:
@@ -342,17 +350,19 @@ def merging_function(ops, Wall, clu, st, tF, r_thresh=0.5, mode='ccg', check_dt=
                 dt = (imax[kk] -imax[jj]).item()
                 if dt != 0 and check_dt:
                     # Get spike indices for cluster jj
-                    idx = (clu2 == jj)
+                    idx = members[jj]
                     # Update tF and Wall with shifted features
-                    tF, Wall = roll_features(W, tF, Ww, idx, jj, dt)
+                    tF, Wall = roll_features(W, tF, Ww, torch.from_numpy(idx), jj, dt)
                     # Shift spike times
                     st[idx,0] -= dt
-                
-                Ww[kk] = ns[kk]/(ns[kk]+ns[jj]) * Ww[kk] + ns[jj]/(ns[kk]+ns[jj]) * Ww[jj]            
+
+                Ww[kk] = ns[kk]/(ns[kk]+ns[jj]) * Ww[kk] + ns[jj]/(ns[kk]+ns[jj]) * Ww[jj]
                 Ww[jj] = 0
                 ns[kk] += ns[jj]
                 ns[jj] = 0
-                clu2[clu2==jj] = kk            
+                clu2[members[jj]] = kk
+                members[kk] = np.sort(np.concatenate((members[kk], members[jj])))
+                members[jj] = members[jj][:0]
 
                 break
 

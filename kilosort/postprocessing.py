@@ -6,7 +6,7 @@ import torch
 from kilosort.clustering_qr import xy_templates, get_data_cpu
 
 
-@njit("(int64[:], int32[:], int32)")
+@njit("(int64[:], int32[:], int32)", cache=True)
 def remove_duplicates(spike_times, spike_clusters, dt=15):
     '''Removes same-cluster spikes that occur within `dt` samples.'''
     keep = np.zeros_like(spike_times, bool_)
@@ -102,17 +102,33 @@ def make_pc_features(ops, spike_templates, spike_clusters, tF):
     n_chans = ops['nearest_chans']
     feature_ind = np.zeros((n_clusters, n_chans), dtype=np.uint32)
 
+    # Spike indices of each cluster and of each template, ascending, computed
+    # once instead of with a mask over all spikes per cluster.
+    def groups(labels):
+        order = np.argsort(labels, kind='stable')
+        bounds = np.concatenate(([0], np.cumsum(np.bincount(labels))))
+        return order, bounds
+    clu_order, clu_bounds = groups(spike_clusters)
+    tmp_order, tmp_bounds = groups(spike_templates)
+    pid = torch.from_numpy(spike_templates).long()
+
     for i in np.unique(spike_clusters):
         # Get templates associated with cluster (often just 1)
-        iunq = np.unique(spike_templates[spike_clusters==i]).astype(int)
+        iunq = np.unique(
+            spike_templates[clu_order[clu_bounds[i]:clu_bounds[i+1]]]
+            ).astype(int)
         # Get boolean mask with size (n_templates,), True if they match cluster
         ix = torch.from_numpy(np.zeros(n_templates, bool))
         ix[iunq] = True
-        # Get PC features for all spikes detected with those templates (Xd),
-        # and the indices in tF where those spikes occur (igood).
+        # Indices in tF of all spikes detected with those templates (igood)
+        igood = np.sort(np.concatenate(
+            [tmp_order[tmp_bounds[j]:tmp_bounds[j+1]] for j in iunq]
+            ))
+        # Get PC features for those spikes (Xd).
         Xd, igood, ichan = get_data_cpu(
-            ops, xy, iC, spike_templates, tF, None, None,
-            dmin=ops['dmin'], dminx=ops['dminx'], ix=ix, merge_dim=False
+            ops, xy, iC, pid, tF, None, None,
+            dmin=ops['dmin'], dminx=ops['dminx'], ix=ix, merge_dim=False,
+            igood=torch.from_numpy(igood)
             )
 
         # Take mean of features across spikes, find channels w/ largest norm
