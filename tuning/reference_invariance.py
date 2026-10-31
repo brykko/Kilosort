@@ -12,7 +12,7 @@ import json
 
 import numpy as np
 
-from score import score_sort
+from score import eligible, score_sort
 from cleaning import load_clean_units
 
 p = argparse.ArgumentParser()
@@ -27,7 +27,8 @@ args = p.parse_args()
 sorts = dict(a.split('=', 1) for a in args.sorts)
 refs = {k: np.load(v) for k, v in (a.split('=', 1) for a in args.refs)}
 clean = {s: load_clean_units(folder, args.raw_artefacts) for s, folder in sorts.items()}
-S = {s: {r: score_sort(clean[s][0], ref, args.t0, args.duration, clean[s][2])[0] for r, ref in refs.items()}
+units = {s: eligible(sorts[s], clean[s][0], args.duration)[0] for s in sorts}
+S = {s: {r: score_sort(clean[s][0], units[s], ref, args.t0, args.duration, clean[s][2])['S'] for r, ref in refs.items()}
      for s in sorts}
 pairs = {f'{b} - {a}': {r: S[b][r] - S[a][r] for r in refs} for a, b in itertools.combinations(sorts, 2)}
 Path = __import__('pathlib').Path

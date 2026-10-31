@@ -20,7 +20,8 @@ import numpy as np
 
 from score import unit_scores
 from cleaning import load_clean_units, masked_fraction
-from theta_reference import (DECODERS, N_ITER, compare_to_tracking, cycle_counts, eligible_units,
+from score import eligible as eligible_units_of
+from theta_reference import (DECODERS, N_ITER, compare_to_tracking, cycle_counts,
                              internal_direction, theta_cycles)
 
 BLOCK_UM = 100
@@ -41,7 +42,7 @@ source = [int(c) for c, lab in zip(acg['cluster'], acg['raw_acg_label']) if lab 
 bounds, dur, moving, hd = theta_cycles(by_cluster, source, np.load(args.tracking), args.t0, args.duration)
 frac = masked_fraction(bounds, mask)
 moving, dur = moving & (frac <= 0.5), dur * (1 - frac)
-eligible = np.array(eligible_units(by_cluster, args.duration))
+eligible = np.array(eligible_units_of(args.sort, by_cluster, args.duration)[0])
 counts = cycle_counts(by_cluster, eligible, bounds)
 group = np.array([int(depth[c] // BLOCK_UM) % 2 for c in eligible])
 half = ((bounds[:-1] + bounds[1:]) / 2) >= args.duration / 2

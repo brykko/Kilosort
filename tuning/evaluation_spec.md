@@ -11,6 +11,8 @@
 - **Raw-data pass runs after KS4's referencing** and is a diagnostic plus a safety net only (§6.1). Before referencing it is dominated by common-mode ringing that KS4's referencing removes; after it, nothing reaches 128 channels, the largest events are real population bursts, and the muscle index carries no information (median subtraction induces negative correlations). The muscle-noise mask is dropped; transients are masked only at ≥ 128 channels.
 - **Duplicate test uses a conditional binomial test** (§6.3) instead of a Poisson test against the flank mean, which produced false flags for small units with empty flanks.
 - **Flagged pairs more than 150 µm apart are artefact at any lag**; coincident spikes are removed from both units (§6.3). In the prototype every distant flagged pair joined MUA units at opposite ends of the probe at fixed lags of 0 or ±20 samples, not axonal propagation.
+- **G2 (tracked-heading anchor) is demoted to a loose backstop** (fails only below default − 5τ; §7.2, §7.5): it measures a signal deliberately not optimised, so a tight gate could block genuine improvements.
+- **Waveform screen is Bombcell's noise class only** (§6.4), plus the footprint limit; no somatic-shape requirement. **G5 uses a stricter screen**, not a relaxed one: a relaxed screen could never flag an eligible unit (§7.1).
 - **`do_CAR = True` is fixed** (§4): without it the common-mode ringing enters the sort.
 
 ### Changes in v0.5
@@ -189,7 +191,7 @@ After §6.1–6.3, a unit is eligible for S if all hold:
 
 - ≥ 100 spikes in each 10-min segment.
 - Refractory-violation contamination estimate (1.5 ms refractory period, 0.25 ms censored period) ≤ 10%.
-- Passes the waveform screen: template peak-to-peak spread over ≤ 300 µm of the shank, and a somatic-shaped waveform. The shape rules follow Bombcell's published noise criteria and are written into the harness before Phase 0.
+- Passes the waveform screen (`tuning/waveform.py`, on KS4's un-whitened templates): not Bombcell "noise" under py_bombcell's default thresholds (≤ 2 peaks, ≤ 1 trough, peak–trough duration 100–1150 µs, baseline ≤ 0.3, second peak ≤ 0.8 × trough, exponential spatial decay 0.01–0.1 per µm), and channels with ≥ 20% of the peak channel's peak-to-peak amplitude span ≤ 300 µm. Bombcell's other classes (non-somatic, MUA) are not used: they are of limited reliability, and positive-going (non-somatic by Bombcell's rule) units here are clearly neural and often strongly heading-tuned. Prototype: 4–6 of ~360–376 spike-eligible units fail.
 - Not matched to an inserted hybrid unit.
 
 ### 6.5 Tracking-quality mask (for G2 and Phase 0 only)
@@ -205,16 +207,15 @@ Tolerances marked τ are 2 × the SD of that quantity across default replicates 
 | # | Guard | Pass condition | What it catches |
 |---|---|---|---|
 | G1 | Unit count | Eligible units within 0.8–1.25 × default | Wholesale fragmentation or loss |
-| G2 | Tracked-heading anchor | S_track ≥ S_track,default − τ (§7.2) | Gains in S that don't hold against the real-world heading |
 | G3 | Suspected splits | Count ≤ default + τ_split (§7.3) | Oversplitting, which S under-penalises |
 | G4 | Hybrid recovery | §7.4 | Splits, merges, misses on known units; merges of differently tuned HD pairs |
-| G5 | Artefact share | Share of S from units failing the waveform screen's *relaxed* version ≤ default + τ | Artefact-like units that passed eligibility |
+| G5 | Artefact share | Share of S from eligible units that fail a *stricter* version of the waveform screen (a margin inside each noise threshold: duration ≤ 1100 µs, baseline ≤ 0.25, second peak ≤ 0.7 × trough, decay 0.0125–0.09 per µm, footprint ≤ 250 µm) ≤ default + τ | Near-noise units that only just passed eligibility |
 | G6 | Cleaning burden | Fraction of spikes removed by §6.2–6.3, and flagged-pair count, ≤ default + τ | Settings that generate duplicates or artefacts, even when the harness neutralises them |
 | G7 | Untuned units | Number of eligible units with S_i below the 25th percentile of default's S_i ≥ 0.9 × default | Selection pressure against non-HD cells (circularity) |
 
 ### 7.2 Tracked-heading score S_track
 
-Identical to §5.2–5.3, with tracked head direction (circular mean within each moving theta cycle) in place of θ_ref, the §6.5 mask applied, no time offset between spikes and heading. S_track is expected to be lower than S, since θ_ref carries internal dynamics that tracking lacks. S_track is reported every run; G2 fails only if it drops by more than τ.
+Identical to §5.2–5.3, with tracked head direction (circular mean within each moving theta cycle) in place of θ_ref, the §6.5 mask applied, no time offset between spikes and heading. S_track is expected to be lower than S, since θ_ref carries internal dynamics that tracking lacks. S_track is reported every run; G2 (a backstop, §7.5) fails only if it drops by more than 5τ. Across the prototype sorts S_track / S was 0.83 for all three, so the two normally move together.
 
 If S rises while S_track falls, that is a warning sign even when G2 passes, and the log entry should say so.
 
@@ -249,6 +250,7 @@ The sharp ±1.5 ms window is deliberate. Cells with different tuning have broad 
 
 | # | Backstop | Fail condition | Why it's loose |
 |---|---|---|---|
+| G2 | Tracked-heading anchor | S_track < S_track,default − 5τ (§7.2) | A good sort is expected to fit θ_ref better than tracked heading, and gains concentrated where θ_ref departs from tracking may lower S_track slightly. Only a large drop, while S rises, signals gains from non-heading structure in θ_ref (§12). |
 | G8 | Mask integrity | Raw mask hash differs from the frozen one | Should never trip; catches harness tampering or drift |
 | G9 | Calibration | C < C_default − 5τ_C | Duplicates and artefacts are now removed directly by §6. Correlated internal dynamics make the decoder overconfident by the same amount for every sort, so this is a coarse tripwire, not a tight guard. |
 

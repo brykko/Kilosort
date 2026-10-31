@@ -255,16 +255,11 @@ def load_clean_units(sort, raw_artefacts):
     return {int(k): t[clu == k] for k in ids}, depth, iv
 
 
-if __name__ == '__main__':
-    ap = argparse.ArgumentParser()
-    ap.add_argument('--sort', required=True)
-    ap.add_argument('--duration', type=float, required=True)
-    ap.add_argument('--seed', type=int, default=0, help='seed for the jittered copies')
-    args = ap.parse_args()
-
-    rng = np.random.default_rng(args.seed)
-    t, u, ids, xy = load_sort(args.sort)
-    ev, rm_events, intervals = multiunit_events(t, u, xy, args.duration, rng)
+def run_cleaning(sort, duration, seed=0):
+    """Clean a sort; writes cleaning.npz and cleaning.json to its folder and returns the report."""
+    rng = np.random.default_rng(seed)
+    t, u, ids, xy = load_sort(sort)
+    ev, rm_events, intervals = multiunit_events(t, u, xy, duration, rng)
     keep = ~rm_events
     dup, pairs, rm_dup = duplicates(t[keep], u[keep], xy, rng)
     removed_dup = np.zeros(t.size, bool)
@@ -275,10 +270,21 @@ if __name__ == '__main__':
               'multiunit_events': ev, 'events_spikes_removed': int(rm_events.sum()),
               'duplicates': dup, 'duplicate_spikes_removed': int(removed_dup.sum()),
               'fraction_spikes_removed': float((rm_events | removed_dup).mean())}
-    out = Path(args.sort)
+    out = Path(sort)
     np.savez(out / 'cleaning.npz', spike_order=np.argsort(np.load(out / 'spike_times.npy').ravel(), kind='stable'),
              removed_event=rm_events, removed_duplicate=removed_dup, event_intervals_samples=intervals)
     (out / 'cleaning.json').write_text(json.dumps({**report, 'flagged_pairs': pairs}, indent=2))
+    return report
+
+
+if __name__ == '__main__':
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--sort', required=True)
+    ap.add_argument('--duration', type=float, required=True)
+    ap.add_argument('--seed', type=int, default=0, help='seed for the jittered copies')
+    args = ap.parse_args()
+    report = run_cleaning(args.sort, args.duration, args.seed)
+    ev = report['multiunit_events']
     print(json.dumps({**report, 'multiunit_events': {k: v for k, v in ev.items() if 'per_10min' not in k or k == 'events_per_10min'}}, indent=2))
     print('multi-unit events per 10 min by k (real / jittered null):')
     print(' '.join(f"k={k}:{ev['real_events_per_10min'][k]:.0f}/{ev['null_events_per_10min'][k]:.1f}" for k in list(ev['real_events_per_10min'])[:20]))

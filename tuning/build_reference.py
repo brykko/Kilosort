@@ -1,11 +1,13 @@
 """Build the frozen reference heading theta_ref from a reference sort (spec §5.1).
 
 theta_ref: per-cycle Poisson decoding (posterior mean) with tuning refitted for 3 passes, all eligible
-units, moving theta cycles only, on the sort after cleaning (spec §6.1-6.3). Prerequisites in the
+units (§6.4, including the waveform screen), moving theta cycles only, on the sort after cleaning
+(spec §6.1-6.3). Prerequisites in the
 sort folder: acg_class.npz (tuning/acg_class.py, elv environment) and cleaning.npz
 (tuning/cleaning.py). Cycles more than 50% masked get no reference heading; others have their
 duration scaled by the unmasked fraction. Writes theta_ref.npz (cycles, moving flags, theta_ref,
-units) and theta_ref.json (summary, sanity floor against tracked heading, SHA-256 of the arrays).
+units, tracked heading per cycle for S_track) and theta_ref.json (summary, sanity floor against
+tracked heading, SHA-256 of the arrays).
 """
 import argparse
 import hashlib
@@ -15,7 +17,8 @@ from pathlib import Path
 import numpy as np
 
 from cleaning import load_clean_units, masked_fraction
-from theta_reference import compare_to_tracking, cycle_counts, eligible_units, internal_direction, theta_cycles
+from score import eligible
+from theta_reference import compare_to_tracking, cycle_counts, internal_direction, theta_cycles
 
 p = argparse.ArgumentParser()
 p.add_argument('--sort', required=True)
@@ -32,12 +35,13 @@ source = [int(c) for c, lab in zip(acg['cluster'], acg['raw_acg_label']) if lab 
 bounds, dur, moving, hd = theta_cycles(by_cluster, source, np.load(args.tracking), args.t0, args.duration)
 frac = masked_fraction(bounds, mask)
 usable = moving & (frac <= 0.5)
-units = eligible_units(by_cluster, args.duration)
+units = eligible(sort, by_cluster, args.duration)[0]
 theta = internal_direction(cycle_counts(by_cluster, units, bounds), dur * (1 - frac), usable, hd, 'poisson_mean')[-1]
 theta[~usable] = np.nan
 
 arrays = {'cycle_bounds_s': bounds + args.t0, 'moving': moving, 'theta_ref': theta,
-          'units': np.array(units), 'theta_source_units': np.array(source)}
+          'units': np.array(units), 'theta_source_units': np.array(source),
+          'hd_tracked': np.where(moving, hd, np.nan)}
 h = hashlib.sha256()
 for k in sorted(arrays):
     h.update(k.encode()); h.update(np.ascontiguousarray(arrays[k]).tobytes())
