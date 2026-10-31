@@ -37,7 +37,7 @@ def run_kilosort(settings, probe=None, probe_name=None, filename=None,
                  progress_bar=None, save_extra_vars=False, clear_cache=False,
                  save_preprocessed_copy=False, bad_channels=None, shank_idx=None,
                  verbose_console=False, verbose_log=False, torch_thread_lim=None,
-                 make_plots=True):
+                 make_plots=True, save_pc_features=True):
     """Run full spike sorting pipeline on specified data.
     
     Parameters
@@ -128,6 +128,10 @@ def run_kilosort(settings, probe=None, probe_name=None, filename=None,
         If False, skip the drift, diagnostic and spike position plots (PNG files in
         `results_dir`). Making them takes ~2-3 minutes for a 20-minute
         Neuropixels recording and doesn't change the sorting results.
+    save_pc_features : bool; default=True.
+        If False, don't compute or save `pc_features.npy` and `pc_feature_ind.npy`
+        (~2 GB and ~20 s for a 20-minute Neuropixels recording). Phy needs these
+        files; nothing else in the sorting results depends on them.
     
     Raises
     ------
@@ -195,7 +199,7 @@ def run_kilosort(settings, probe=None, probe_name=None, filename=None,
                 _filename, _results_dir, _probe, settings, data_dtype, device,
                 do_CAR, clear_cache, invert_sign, save_preprocessed_copy,
                 verbose_log, save_extra_vars, file_object, progress_bar,
-                make_plots=make_plots,
+                make_plots=make_plots, save_pc_features=save_pc_features,
             )
 
     return ops, st, clu, tF, Wall, similar_templates, \
@@ -205,7 +209,7 @@ def run_kilosort(settings, probe=None, probe_name=None, filename=None,
 def _sort(filename, results_dir, probe, settings, data_dtype, device, do_CAR,
           clear_cache, invert_sign, save_preprocessed_copy, verbose_log,
           save_extra_vars, file_object, progress_bar, gui_sorter=None,
-          make_plots=True):
+          make_plots=True, save_pc_features=True):
     """Run sorting pipeline. See `run_kilosort` for documentation.
     
     Notes
@@ -336,7 +340,8 @@ def _sort(filename, results_dir, probe, settings, data_dtype, device, do_CAR,
                 ops, results_dir, st, clu, tF, Wall, bfile.imin, tic0,
                 save_extra_vars=save_extra_vars,
                 save_preprocessed_copy=save_preprocessed_copy,
-                skip_dat_path=(file_object is not None)
+                skip_dat_path=(file_object is not None),
+                save_pc_features=save_pc_features
                 )
         if torch.cuda.is_available():
             ops['cuda_postproc'] = torch.cuda.memory_stats(device)
@@ -963,7 +968,7 @@ def cluster_spikes(st, tF, ops, device, bfile, tic0=np.nan, progress_bar=None,
 
 def save_sorting(ops, results_dir, st, clu, tF, Wall, imin, tic0=np.nan,
                  save_extra_vars=False, save_preprocessed_copy=False,
-                 skip_dat_path=False):  
+                 skip_dat_path=False, save_pc_features=True):  
     """Save sorting results, and format them for use with Phy
 
     Parameters
@@ -1002,6 +1007,8 @@ def save_sorting(ops, results_dir, st, clu, tF, Wall, imin, tic0=np.nan,
         has an unexpected format, like when using a `file_object` loaded from
         an external data format through SpikeInterface. The full filename(s) will
         still be included in `params.py` for reference, but will be commented out.
+    save_pc_features : bool; default=True.
+        If False, skip `pc_features.npy` and `pc_feature_ind.npy`.
 
     Returns
     -------
@@ -1037,7 +1044,7 @@ def save_sorting(ops, results_dir, st, clu, tF, Wall, imin, tic0=np.nan,
             st, clu, tF, Wall, ops['probe'], ops, imin, results_dir=results_dir,
             data_dtype=ops['data_dtype'], save_extra_vars=save_extra_vars,
             save_preprocessed_copy=save_preprocessed_copy,
-            skip_dat_path=skip_dat_path
+            skip_dat_path=skip_dat_path, save_pc_features=save_pc_features
             )
     logger.info(f'{int(is_ref.sum())} units found with good refractory periods')
     

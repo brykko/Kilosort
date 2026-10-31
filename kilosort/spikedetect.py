@@ -148,9 +148,10 @@ def template_match(X, ops, iC, iC2, weigh, device=torch.device('cuda')):
 
     W = ops['wTEMP'].unsqueeze(1)
     B = conv1d(X.unsqueeze(1), W, padding=nt//2)
-    As    = torch.zeros((Nfilt, NT), device=device)
-    Amaxs = torch.zeros((Nfilt, NT), device=device)
-    imaxs = torch.zeros((Nfilt, NT), dtype = torch.int64, device=device)
+    # Every element is written below, by the fused kernel or by the loop.
+    As    = torch.empty((Nfilt, NT), device=device)
+    Amaxs = torch.empty((Nfilt, NT), device=device)
+    imaxs = torch.empty((Nfilt, NT), dtype = torch.int64, device=device)
     ti = torch.arange(Nfilt, device = device)
     tj = torch.arange(nb, device = device)
 

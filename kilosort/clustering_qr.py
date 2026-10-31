@@ -163,9 +163,14 @@ def cluster(Xd, iclust=None, kn=None, nskip=1, n_neigh=10, max_sub=25000,
         isub = assign_isub(iclust, kn, tones2, nclust, nsub, lam, m,
                            ki, kj,device=device)
         # given mu and isub, reassign iclust
-        iclust = assign_iclust(rows_neigh, isub, kn, tones2, nclust, lam, m,
-                               ki, kj, device=device)
-        
+        iclust_new = assign_iclust(rows_neigh, isub, kn, tones2, nclust, lam, m,
+                                   ki, kj, device=device)
+        # Each iteration is a deterministic function of iclust alone, so once
+        # an iteration returns the same assignment every later one would too.
+        if torch.equal(iclust_new, iclust):
+            break
+        iclust = iclust_new
+
     if verbose:
         logger.debug(f'isub: {isub.nbytes / (2**20):.2f} MB, shape: {isub.shape}')
         log_performance(logger, header='clustering_qr.cluster, after isub loop')
@@ -178,6 +183,14 @@ def cluster(Xd, iclust=None, kn=None, nskip=1, n_neigh=10, max_sub=25000,
     isub = isub.cpu().numpy()
 
     return iclust, isub, M, iclust_init
+
+
+def _multinomial(p, n):
+    """Same indices and RNG consumption as torch.multinomial(p, n) (no replacement),
+    without its validity checks, which each make the host wait for the GPU.
+    p must be non-negative, finite and not all zero."""
+    q = torch.empty_like(p).exponential_(1)
+    return torch.topk(p / q, n).indices
 
 
 def kmeans_plusplus(Xg, niter=200, seed=1, device=torch.device('cuda'), verbose=False):
@@ -203,12 +216,11 @@ def kmeans_plusplus(Xg, niter=200, seed=1, device=torch.device('cuda'), verbose=
 
     ntry = 100  # number of candidate cluster centroids to test on each iteration
     n_spikes, n_features = Xg.shape
-    # Need to store the spike features used for each cluster centroid (mu),
-    # best variance explained so far for each spike (vexp0),
+    # Need to store the best variance explained so far for each spike (vexp0),
     # and the cluster assignment for each spike (iclust).
-    mu = torch.zeros((niter, n_features), device = device)
     vexp0 = torch.zeros(n_spikes, device = device)
     iclust = torch.zeros((n_spikes,), dtype = torch.int, device = device)
+    Xg2 = 2 * Xg
 
     if verbose:
         log_performance(logger, header='clustering_qr.kpp, after var init')
@@ -226,15 +238,15 @@ def kmeans_plusplus(Xg, niter=200, seed=1, device=torch.device('cuda'), verbose=
         # more unexplained variance makes it more likely to be selected
         # Only one of these candidates will be added this iteration. 
         if subsample:
-            isamp = rev_idx[torch.multinomial(v2[idx], ntry)]
+            isamp = rev_idx[_multinomial(v2[idx], ntry)]
         else:
-            isamp = torch.multinomial(v2, ntry)
+            isamp = _multinomial(v2, ntry)
 
         try:
             # The new centroids to be tested, sampled from the spikes in Xg.
             Xc = Xg[isamp]
             # Variance explained for each spike for the new centroids.
-            vexp = 2 * Xg @ Xc.T - (Xc**2).sum(1)
+            vexp = Xg2 @ Xc.T - (Xc**2).sum(1)
             # Difference between variance explained for new centroids
             # and best explained variance so far across all iterations.
             # This gets relu-ed, since only the positive increases will actually
@@ -243,17 +255,19 @@ def kmeans_plusplus(Xg, niter=200, seed=1, device=torch.device('cuda'), verbose=
             # Sum all positive increases to determine additional explained variance
             # for each candidate centroid.
             vsum = dexp.sum(0)
-            # Pick the candidate which increases explained variance the most 
-            imax = torch.argmax(vsum)
+            # Pick the candidate which increases explained variance the most.
+            # Kept as a 1-element tensor: indexing with a 0-dim tensor, or
+            # with a boolean mask, would make the host wait for the GPU.
+            imax = torch.argmax(vsum).view(1)
 
             # For that centroid (Xc[imax]), determine which spikes actually get
             # more variance from it
-            ix = dexp[:, imax] > 0
+            ix = dexp.index_select(1, imax).squeeze(1) > 0
 
-            iclust[ix] = j    # assign new cluster identity
-            mu[j] = Xc[imax]  # spike features used as centroid for cluster j
+            # assign new cluster identity
+            iclust = torch.where(ix, torch.tensor(j, dtype=iclust.dtype, device=device), iclust)
             # Update variance explained for the spikes assigned to cluster j
-            vexp0[ix] = vexp[ix, imax]
+            vexp0 = torch.where(ix, vexp.index_select(1, imax).squeeze(1), vexp0)
 
             # Delete large variables between iterations
             # to prevent excessive memory reservation.
@@ -558,8 +572,12 @@ def run(ops, st, tF, mode='template', device=torch.device('cuda'),
 
 
 def get_data_cpu(ops, xy, iC, PID, tF, ycenter, xcenter, dmin=20, dminx=32,
-                 ix=None, merge_dim=True):
-    PID =  torch.from_numpy(PID).long()
+                 ix=None, merge_dim=True, igood=None):
+    # PID may also be given as an int64 tensor, and igood (the indices of the
+    # spikes whose template is in ix, ascending) precomputed, to avoid
+    # repeating that work over all spikes on every call.
+    if not torch.is_tensor(PID):
+        PID =  torch.from_numpy(PID).long()
 
     #iU = ops['iU'].cpu().numpy()
     #iC = ops['iCC'][:, ops['iU']]    
@@ -575,7 +593,8 @@ def get_data_cpu(ops, xy, iC, PID, tF, ycenter, xcenter, dmin=20, dminx=32,
             torch.abs(xy[1] - y0) < dmin,
             torch.abs(xy[0] - x0) < dminx
             )
-    igood = ix[PID].nonzero()[:,0]
+    if igood is None:
+        igood = ix[PID].nonzero()[:,0]
 
     if len(igood) == 0:
         return None, None, None
