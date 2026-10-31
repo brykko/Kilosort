@@ -4,7 +4,12 @@
 Each eligible unit gets a tuning curve against the heading (60 bins, 12° circular smoothing, shrunk
 towards its mean rate by SCORE_PSEUDO_S of pseudo-occupancy) on one time half's moving cycles and is
 scored on the other half: Poisson log-likelihood gain over its mean rate, bits/s. Both halves are
-scored and summed. S uses theta_ref; S_track uses the tracked heading of each cycle (circular mean).
+scored and summed. Each unit's score is null-corrected: its mean score against the heading rotated
+among the scored cycles by NULL_FRACTIONS of their number (each >= ~100 s of moving time) is
+subtracted, so an untuned unit scores about zero for any alpha instead of paying the
+cross-validation penalty of a curve fitted to noise (spec §5.2). Rotating within the scored cycles
+keeps the null's cycles and time identical to the real score's, so its penalty matches.
+S uses theta_ref; S_track uses the tracked heading of each cycle (circular mean).
 C decodes theta_ref from the same cross-validated tuning curves (flat prior) and averages
 log2(60 x posterior at the theta_ref bin) over test cycles.
 
@@ -12,7 +17,8 @@ Spikes come from cleaning.load_clean_units (spec §6.1-6.3). A cycle more than 5
 dropped; otherwise its duration is scaled by its unmasked fraction (§5.3). Cycles where the
 reference itself is undefined (non-moving, or masked in the reference sort) are not scored.
 
-Preliminary: alpha is a placeholder (spec §5.2 sets it in Phase 0).
+SCORE_PSEUDO_S (alpha) was set in Phase 0 (§8.5): sensitivity across default replicates barely
+depends on it, and 0.25 s keeps nearly all of it.
 """
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
@@ -22,7 +28,8 @@ from cleaning import masked_fraction
 from theta_reference import N_BINS, cycle_counts, eligible_units, tuning
 
 SCORE_SMOOTH_BINS = 2   # 12°
-SCORE_PSEUDO_S = 1.0
+SCORE_PSEUDO_S = 0.25
+NULL_FRACTIONS = [k / 7 for k in range(1, 7)]
 
 
 def eligible(sort, by_cluster, duration, screen=None):
@@ -60,6 +67,20 @@ def unit_scores(theta, counts, dur, moving, second_half):
     return gain / t_test
 
 
+def rotate(theta, mask, fraction):
+    """theta with its values on the masked cycles circularly shifted by fraction of their number."""
+    idx = np.where(mask)[0]
+    out = theta.copy()
+    out[idx] = np.roll(theta[idx], int(round(fraction * idx.size)))
+    return out
+
+
+def corrected_scores(theta, counts, dur, moving, second_half, fractions=NULL_FRACTIONS):
+    """unit_scores minus each unit's mean score against theta rotated among the moving cycles."""
+    null = sum(unit_scores(rotate(theta, moving, f), counts, dur, moving, second_half) for f in fractions)
+    return unit_scores(theta, counts, dur, moving, second_half) - null / len(fractions)
+
+
 def calibration(theta, counts, dur, moving, second_half):
     """C: mean over test cycles of log2(60 x posterior at theta's bin), flat prior, cross-validated."""
     theta = np.where(moving, theta, 0.0)
@@ -85,11 +106,11 @@ def score_sort(by_cluster, units, reference, t0, duration, mask, track=False):
     usable = reference['moving'] & (frac <= 0.5)
     valid = usable & np.isfinite(reference['theta_ref'])
     counts = cycle_counts(by_cluster, units, bounds)
-    s = unit_scores(reference['theta_ref'], counts, dur, valid, half)
+    s = corrected_scores(reference['theta_ref'], counts, dur, valid, half)
     out = {'S': float(s.sum()), 'S_i': dict(zip(units, s.tolist()))}
     if track:
         hd = reference['hd_tracked']
-        st = unit_scores(hd, counts, dur, usable & np.isfinite(hd), half)
+        st = corrected_scores(hd, counts, dur, usable & np.isfinite(hd), half)
         out.update(S_track=float(st.sum()), S_track_i=dict(zip(units, st.tolist())),
                    C=float(calibration(reference['theta_ref'], counts, dur, valid, half)))
     return out
