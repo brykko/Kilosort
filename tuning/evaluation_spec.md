@@ -12,6 +12,7 @@
 - **Duplicate test uses a conditional binomial test** (§6.3) instead of a Poisson test against the flank mean, which produced false flags for small units with empty flanks.
 - **Flagged pairs more than 150 µm apart are artefact at any lag**; coincident spikes are removed from both units (§6.3). In the prototype every distant flagged pair joined MUA units at opposite ends of the probe at fixed lags of 0 or ±20 samples, not axonal propagation.
 - **G2 (tracked-heading anchor) is demoted to a loose backstop** (fails only below default − 5τ; §7.2, §7.5): it measures a signal deliberately not optimised, so a tight gate could block genuine improvements.
+- **Phase 0 decisions:** full-population θ_ref kept despite a narrow §8.4 failure; §8.10 waveform adjudication dropped as uninformative for KS4.
 - **S is null-corrected per unit and α = 0.25 s** (§5.2, §8.5): untuned units score ≈ 0 instead of paying a cross-validation penalty that would reward dropping them.
 - **Waveform screen is Bombcell's noise class only** (§6.4), plus the footprint limit; no somatic-shape requirement. **G5 uses a stricter screen**, not a relaxed one: a relaxed screen could never flag an eligible unit (§7.1).
 - **`do_CAR = True` is fixed** (§4): without it the common-mode ringing enters the sort.
@@ -142,7 +143,7 @@ Units matched to inserted hybrid units (§7.4) are excluded from S.
 
 All comparisons are paired on the same excerpt: ΔS = S_candidate − S_default.
 
-- σ_S **[PHASE 0]**: SD of S across ≥ 5 default replicates with different seeds.
+- σ_S: SD of S across ≥ 5 default replicates with different seeds; 8.0 bits/s (§8.1), so δ = 16.0 bits/s.
 - δ = max(δ_practical, 2σ_S), with δ_practical = 1% of default S.
 - A candidate *improves* if mean ΔS ≥ δ over its replicates and every guard passes.
 
@@ -163,8 +164,8 @@ Why the raw pass masks so little: the artefact that does reach the sort is resid
 
 ### 6.2 Spike-level multi-unit artefact events
 
-- Any 0.2 ms window in which ≥ k distinct units **[PHASE 0]** whose median spike positions span ≥ 1 mm all have spikes.
-- k is set on the default sort so that an interval-jittered copy (5 ms windows) yields < 1 such event per 10 min.
+- Any 0.2 ms window in which ≥ k = 17 distinct units whose median spike positions span ≥ 1 mm all have spikes.
+- k was set on the default replicates as the smallest value at which an interval-jittered copy (5 ms windows) yields < 1 such event per 10 min (17 in 4 of 5 replicates, 18 in one), and is fixed for every sort, the reference sorts included. The jittered rate is still reported per sort.
 - All spikes in the window, from every unit, are removed, and the window is masked as missing time.
 - Reported per evaluation: event rate. Prototype (default, seed 1): k = 17, 23 events, 401 spikes removed.
 
@@ -203,7 +204,7 @@ Tracked head direction is marked invalid where the Motive rigid body is flagged 
 
 ## 7. Guards (pass/fail, each relative to default on the same excerpt)
 
-Tolerances marked τ are 2 × the SD of that quantity across default replicates **[PHASE 0]** unless stated.
+Tolerances marked τ are 2 × the SD of that quantity across the five default replicates (§8.1, `runs/phase0_replicates.json`) unless stated.
 
 ### 7.1 Main guards
 
@@ -269,16 +270,16 @@ Not counted in the search budget. The search may not start until every item pass
 
 | # | Check | Pass condition |
 |---|---|---|
-| 8.1 | Seed replicates: default × 5 on the excerpt | σ_S and all τ values computed. **Done** (hybrid excerpt, seeds 1–5, `e28143c`; `runs/phase0_replicates.json`): with the final score (null-corrected, α = 0.25 s): S = 577.2 ± 8.0 bits/s (σ_S 1.4% of S), so δ = 2σ_S = 16.1 bits/s (2.8%). τ: S_track 15.3 bits/s, C 0.16 bits, eligible units 4.6, suspected splits 2.2, near-noise share 0.002, spikes removed 0.16 percentage points, flagged pairs 40, hybrid median agreement 0.0055. Hybrid: median agreement 0.95, 30–32 of 40 recovered (unrecovered units are mostly the smallest), no HD pair merged; 35–37 hybrid copies excluded per sort. |
+| 8.1 | Seed replicates: default × 5 on the excerpt | σ_S and all τ values computed. **Done** (hybrid excerpt, seeds 1–5, `e28143c`; `runs/phase0_replicates.json`): with the final score (null-corrected, α = 0.25 s) and k = 17: S = 576.2 ± 8.0 bits/s (σ_S 1.4% of S), so δ = 2σ_S = 16.0 bits/s (2.8%). τ: S_track 15.3 bits/s, C 0.16 bits, eligible units 4.6, suspected splits 2.2, near-noise share 0.002, spikes removed 0.16 percentage points, flagged pairs 39, hybrid median agreement 0.0055. Hybrid: median agreement 0.95, 30–32 of 40 recovered (unrecovered units are mostly the smallest), no HD pair merged; 35–37 hybrid copies excluded per sort. |
 | 8.2 | θ_ref sanity floor | On moving cycles, report circular correlation (Fisher–Lee, which needs no mean direction; open-field heading is near-uniform) and angular offset between θ_ref and tracked heading. Pass if circular correlation ≥ 0.8, i.e. θ_ref is still clearly a heading signal. This is a floor, never an objective: departures from tracking are expected. Prototype: 0.81–0.83. |
 | 8.3 | Reference invariance | Build θ_ref from two default sorts without hybrid insertion (reserved seeds 1000 and 1001). Score at least three other sorts against both references. Pass if, for every pair of sorts, ΔS differs between the two references by < 0.25 δ. (What matters is that the choice of reference sort doesn't change comparisons; agreement between the two θ_ref series themselves is reported only.) Prototype (references from seeds 1000/1001; sorts: default seeds 1 and 2, and an `extra-settings`-branch sort; all cleaned per §6): spreads 0.2–0.7 bits/s, against 2.0–4.3 bits/s when the reference sorts were themselves among the compared sorts (self-leak, §8.4). θ_ref series: Fisher–Lee 0.944; median difference < 0.001°, 2.3% of cycles differ by > 45° (low-spike cycles). |
-| 8.4 | Self-leak check | On the default sort, compute S against the full-population θ_ref and against a depth-split version (θ_ref from the top half scores bottom-half units and vice versa, with a 150 µm buffer). Pass if they differ by < 0.25 δ. If not, adopt the split for all runs. **Result** (5 hybrid replicates, `runs/phase0_self_leak.json`): levels drop 21% under the split (each half-reference has half the units), so pairwise ΔS between replicates was compared instead, as in 8.3: the largest change was 5.3 bits/s against 0.25 δ = 4.0. After allowing for the proportional shrinkage (ΔS_split ≈ 0.87 ΔS_full, r = 0.97) residuals are ≤ 4.9 bits/s and concentrated on one replicate, consistent with the split's own noise (units near the median depth fall on different sides in different sorts) rather than leak. Adopting the split would cost ~13% of sensitivity (mean/SD 62 vs 72). **[DECIDE]** |
-| 8.5 | Time-shift control: θ_ref circularly shifted ≥ 60 s | \|S\| within 2σ_S of 0 after α is set. Confirms no leakage. **Pass** (`runs/phase0_alpha_scan.json`): sensitivity across replicates (mean/SD) barely depends on α (raw 70.8 at 0.1 s to 67.5 at 4 s; null-corrected 1–2% higher at every α), so α = 0.25 s. Control rotations half-way between the null rotations: S = +0.8 ± 3.0 bits/s (range −4.1 to +5.4) against 2σ_S = 16.0. |
+| 8.4 | Self-leak check | On the default sort, compute S against the full-population θ_ref and against a depth-split version (θ_ref from the top half scores bottom-half units and vice versa, with a 150 µm buffer). Pass if they differ by < 0.25 δ. If not, adopt the split for all runs. **Result** (5 hybrid replicates, `runs/phase0_self_leak.json`): levels drop 21% under the split (each half-reference has half the units), so pairwise ΔS between replicates was compared instead, as in 8.3: the largest change was 5.3 bits/s against 0.25 δ = 4.0. After allowing for the proportional shrinkage (ΔS_split ≈ 0.87 ΔS_full, r = 0.97) residuals are ≤ 4.9 bits/s and concentrated on one replicate, consistent with the split's own noise (units near the median depth fall on different sides in different sorts) rather than leak. Adopting the split would cost ~13% of sensitivity (mean/SD 62 vs 72). **Decision:** keep the full-population θ_ref; reference invariance (8.3) covers the comparisons. |
+| 8.5 | Time-shift control: θ_ref circularly shifted ≥ 60 s | \|S\| within 2σ_S of 0 after α is set. Confirms no leakage. **Pass** (`runs/phase0_alpha_scan.json`): sensitivity across replicates (mean/SD) barely depends on α (raw 70.8 at 0.1 s to 67.5 at 4 s; null-corrected 1–2% higher at every α), so α = 0.25 s. Control rotations half-way between the null rotations: S = +0.8 ± 3.2 bits/s (range −4.9 to +5.8) against 2σ_S = 16.0. (8.4 and 8.6 were run against the reference built with k = 18 before k was fixed; the change removes ~0.003% of spikes and moves S by ~1 bit/s.) |
 | 8.6 | Perturbation audit on the default sort (no re-sorting) | At 5% rates: merges between differently tuned units, dropped units, contamination and thinning each lower S by ≥ 3σ_S. Duplicates: \|ΔS\| < σ_S after §6.3 and G6 trips. Heading-locked artefact units: masked, or trip G5/G9. Splits: G3 trips. Merges between similarly tuned cells are expected to cost little (§12); report their effect rather than requiring it. **Pass** (default seed 1, 18 of 361 units, 5 draws; `runs/phase0_perturbation.json`): merges of differently tuned units −44.6 bits/s (−5.6σ_S), drops −27.8 (−3.5σ_S), contamination −285 (most units then fail the refractory criterion), thinning −36.0 (−4.5σ_S). Splits: ΔS −2.1 (S barely penalises them, as expected), and 16 of 18 meet the G3 rule (τ = 2.2). Duplicates (80% copies, ±2 samples): +27.7 bits/s before cleaning, −1.0 after; 2.8% of spikes removed, so G6 trips. Heading-locked artefact units were not tested: they need synthetic waveforms in the raw data. |
 | 8.7 | Saturation | S still rising with unit count at the full count (unit-subsampling curve). **Pass by construction:** S is a sum of per-unit scores, so it rises with every informative unit; it cannot saturate the way a population decoder can. |
 | 8.8 | Duplicate-test null | Jittered-copy flags within the §6.3 limit. **Pass:** 0 flags in every jittered copy of 5 default sorts (285–332 real flags). |
 | 8.9 | Raw transients and masks | Raw events at ≥ 128 channels (§6.1), if any, inspected by you; random 64–127-channel events plotted to confirm they remain neural. Masked time fraction (§6.1–6.2) reported; > 5% is flagged for discussion. Describe (not tune) how multi-unit event rate relates to heading, speed and immobility. Prototype: no ≥ 128-channel events; 64–127-channel events are population bursts. |
-| 8.10 | Waveform adjudication of flagged ≤ 150 µm pairs | At coincident events, fit both templates jointly to the filtered data. Duplicate if the smaller unit's conditional amplitude has median < 0.3 × its usual amplitude. Report agreement with §6.3. **Not informative for KS4** (`runs/phase0_adjudication.json`, `tuning/adjudicate.py`): only 2 of 211 flagged pairs fall below 0.3 (median ratio 1.03). KS4 makes cross-unit duplicates by peeling: when one template leaves a residual (timing jitter, amplitude variation), a second template fits it, so a joint fit reproduces that decomposition. Example: pair 702/707, where 98% of the smaller unit's 661 spikes coincide with the larger unit's and its template is a residual-like shape, scores 0.36. **[DECIDE]** whether to drop this item. |
+| 8.10 | Waveform adjudication of flagged ≤ 150 µm pairs | At coincident events, fit both templates jointly to the filtered data. Duplicate if the smaller unit's conditional amplitude has median < 0.3 × its usual amplitude. Report agreement with §6.3. **Not informative for KS4** (`runs/phase0_adjudication.json`, `tuning/adjudicate.py`): only 2 of 211 flagged pairs fall below 0.3 (median ratio 1.03). KS4 makes cross-unit duplicates by peeling: when one template leaves a residual (timing jitter, amplitude variation), a second template fits it, so a joint fit reproduces that decomposition. Example: pair 702/707, where 98% of the smaller unit's 661 spikes coincide with the larger unit's and its template is a residual-like shape, scores 0.36. **Decision:** dropped; false flags are covered by the jittered-copy null (8.8). |
 | 8.11 | Reference sort and hybrid effect | One default run on the excerpt without hybrid insertion, reserved seed 1000. It serves as the reference sort (§5.1); comparing a no-hybrid default run with the 8.1 runs (same seed, with and without insertion) reports the insertion's effect on S and unit counts. **Done:** seed 1 at `e28143c` without vs with insertion: S 581.9 vs 577.5 bits/s (−0.55σ_S), eligible units 372 vs 361, 35 hybrid copies excluded. |
 
 ## 9. Search, selection, reporting
@@ -334,8 +335,7 @@ One record per run, written before results are read where possible:
 
 ## 13. Open decisions
 
-1. **Self-leak (§8.4):** keep the full-population θ_ref (recommended; the failure looks like noise in the split test itself) or adopt the depth split (~13% less sensitive).
-2. **Waveform adjudication (§8.10):** drop it (recommended; it cannot separate KS4's peeling duplicates) or replace it with another check.
+None. Settled in Phase 0: the full-population θ_ref is kept (§8.4), and waveform adjudication is dropped (§8.10).
 
 No spike-to-heading time offset is used anywhere (§7.2).
 

@@ -1,9 +1,10 @@
 """Spike-level cleaning of a sort (spec §6.2-6.3), prototype.
 
-- Multi-unit artefact events (§6.2): 0.2 ms windows in which >= k distinct units whose positions
-  span >= 1 mm all spike. k is the smallest value at which an interval-jittered copy of the sort
-  (5 ms windows) gives < 1 event per 10 min. All spikes in an event are removed and the window is
-  masked as missing time.
+- Multi-unit artefact events (§6.2): 0.2 ms windows in which >= EVENT_K distinct units whose
+  positions span >= 1 mm all spike. EVENT_K = 17 was set in Phase 0 as the smallest k at which an
+  interval-jittered copy (5 ms windows) of the default sort gives < 1 event per 10 min (4 of 5
+  replicates; the fifth gave 18). The jittered rate is still reported for every sort. All spikes in
+  an event are removed and the window is masked as missing time.
 - Pairwise duplicates (§6.3), on all unit pairs: lag histogram at sample resolution; for each
   5-sample window centred at lag L in [-1, +1] ms, observed vs expected from that window's own
   flanks (10-30 samples either side). A pair is flagged if, at some L, the conditional binomial p
@@ -31,6 +32,7 @@ from scipy.stats import binom
 FS = 30000
 EVENT_WIN = 6            # 0.2 ms
 EVENT_SPAN_UM = 1000.0
+EVENT_K = 17
 JITTER_WIN = 150         # 5 ms
 MAXLAG = 60              # histogram half-width (2 ms) so flanks of L = +-30 fit
 L_MAX = 30               # lags tested: +-1 ms
@@ -91,14 +93,14 @@ def multiunit_events(t, u, xy, duration_s, rng, k_range=range(3, 41)):
     yj = xy[uj, 1]
     per10 = duration_s / 600
     null_rate = {k: _event_windows(tj, yj, k, EVENT_SPAN_UM)[0].size / per10 for k in k_range}
-    k = next(k for k in k_range if null_rate[k] < 1)
+    k = EVENT_K
     s, e = _event_windows(t, y, k, EVENT_SPAN_UM)
     remove = np.zeros(t.size, bool)
     for a, b in zip(s, e):
         remove[a:b] = True
     intervals = np.stack([t[s], t[e - 1] + 1], axis=1) if s.size else np.empty((0, 2), np.int64)
     real_rate = {kk: _event_windows(t, y, kk, EVENT_SPAN_UM)[0].size / per10 for kk in k_range}
-    return {'k': k, 'n_events': int(s.size), 'events_per_10min': s.size / per10,
+    return {'k': k, 'k_from_null': next((kk for kk in k_range if null_rate[kk] < 1), None), 'n_events': int(s.size), 'events_per_10min': s.size / per10,
             'null_events_per_10min': null_rate, 'real_events_per_10min': real_rate}, remove, intervals
 
 
