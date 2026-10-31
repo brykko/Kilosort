@@ -1,5 +1,5 @@
 """Compare a candidate sort with default (spec §7): guards G1-G3 and G5-G9 from evaluation.json
-files, and the matched-unit report (§7.6). G4 (hybrid recovery) is not implemented yet.
+files, and the matched-unit report (§7.6). G4 applies when the sorts were evaluated with hybrid truth.
 
 Default is one or more replicate sorts (each with evaluation.json). Each guard's quantity is
 compared with the replicate mean; tolerances tau are 2 x the SD across replicates (§7), so with a
@@ -71,6 +71,17 @@ def guards(cand, defaults):
         tau = float(2 * v.std(ddof=1)) if v.size > 1 else None
         return check(name, cand[key], float(v.mean()), ok, tau)
 
+    def hybrid_guards():
+        if not cand.get('hybrid') or not all(e.get('hybrid') for e in defaults):
+            return []
+        m = np.array([e['hybrid']['median_agreement'] for e in defaults])
+        tau = float(2 * m.std(ddof=1)) if m.size > 1 else None
+        rec = float(np.mean([e['hybrid']['n_recovered'] for e in defaults]))
+        return [check('G4 hybrid median agreement', cand['hybrid']['median_agreement'], float(m.mean()),
+                      lambda v, d, t: v >= d - t, tau),
+                check('G4 hybrid units recovered', cand['hybrid']['n_recovered'], rec, lambda v, d, t: v >= d - 1),
+                check('G4 hybrid HD pairs merged', len(cand['hybrid']['merged_pairs']), 0, lambda v, d, t: v == 0)]
+
     vals = lambda e: np.array(list(e['S_i'].values()))
     q = [np.percentile(vals(e), 25) for e in defaults]
     at_most = lambda v, d, t: v <= d + t
@@ -79,6 +90,7 @@ def guards(cand, defaults):
               lambda v, d, t: 0.8 * d <= v <= 1.25 * d),
         relative('G2 S_track (backstop)', 'S_track', lambda v, d, t: v >= d - 5 * t),
         relative('G3 suspected splits', 'n_suspected_splits', at_most),
+        *hybrid_guards(),
         relative('G5 near-noise share of S', 'S_share_near_noise', at_most),
         relative('G6 spikes removed by cleaning', 'fraction_spikes_removed', at_most),
         relative('G6 flagged duplicate pairs', 'n_flagged_pairs', at_most),

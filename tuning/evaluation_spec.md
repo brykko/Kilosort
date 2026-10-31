@@ -231,15 +231,15 @@ The sharp ±1.5 ms window is deliberate. Cells with different tuning have broad 
 ### 7.4 Hybrid ground truth
 
 **Construction (once):**
-- 40 units, sources drawn from well-isolated reference-sort units spanning the amplitude range (deliberately including small units), not just the easiest ones.
-- Waveforms: mean waveforms from the raw excerpt at the source units' spike times, inserted ≥ 200 µm from the source location.
+- 40 units, sources drawn from well-isolated reference-sort units (eligible, refractory contamination ≤ 5%, in no flagged duplicate or suspected split pair, ≥ 600 spikes): 10 as HD pairs (below) and 30 singles, one from each amplitude quantile of the rest, so small units are included, not just the easiest ones.
+- Waveforms: mean of 300 spikes after KS4-style referencing and a 300 Hz high-pass, −1 to +2 ms, on channels within 120 µm of the peak channel, tapered at both ends. Inserted ≥ 200 µm from the source location, moved by a multiple of 40 µm (the probe's column period) so the spatial pattern is unchanged, with the footprint inside the probe (reference sites get no signal), and ≥ 60 µm from other inserted units (40 units at ≥ 100 µm would not fit on the 3.8 mm probe).
 - Spike trains: each source unit's spike train circularly shifted within the excerpt by a fixed offset of at least 60 s, with per-spike amplitude scaling drawn from the source unit's amplitude distribution. The shift removes any relation to heading while keeping firing statistics.
-- Includes ≥ 5 pairs of HD cells with preferred directions ≥ 90° apart, inserted ≤ 60 µm apart. Both members of a pair share one shift, so their real cross-correlogram structure (including broad dips) is preserved.
-- Drift: inserted units follow the default sort's drift estimate for the excerpt (partly circular; noted as a limitation).
-- Fixed insertion seed.
-- Built by adapting `kilosort/simulation.py:hybrid_simulation` (it currently hard-codes a probe path, line 629).
+- Includes 5 pairs of HD cells (mean vector length of the tracked-heading tuning curve ≥ 0.25) with preferred directions ≥ 90° apart, inserted ≤ 60 µm apart. Both members of a pair share one shift, so their real cross-correlogram structure (including broad dips) is preserved.
+- Drift: inserted units follow the reference sort's drift estimate for the excerpt (partly circular; noted as a limitation): each spike is placed at its target depth minus that batch's `dshift`, interpolated linearly along the probe column.
+- Fixed insertion seed (0).
+- Built by `tuning/make_hybrid.py`. `kilosort/simulation.py:hybrid_simulation` was not adapted: it hard-codes another probe, its file paths and its own spike-train generator.
 
-**Scoring:** agreement = matched / (n_true + n_sorted − matched), ±0.4 ms tolerance, best-matching sorted unit per inserted unit.
+**Scoring** (`tuning/hybrid.py`, on the sorter's output before cleaning, so it measures the sort): agreement = matched / (n_true + n_sorted − matched), ±0.4 ms tolerance, best-matching sorted unit per inserted unit. Sorted units whose spikes are ≥ 50% inserted spikes are hybrid copies, excluded from eligibility and S.
 
 **G4 passes if all hold:**
 - median agreement ≥ default − τ_hyb;
@@ -266,7 +266,7 @@ Not counted in the search budget. The search may not start until every item pass
 
 | # | Check | Pass condition |
 |---|---|---|
-| 8.1 | Seed replicates: default × 5 on the excerpt | σ_S and all τ values computed. |
+| 8.1 | Seed replicates: default × 5 on the excerpt | σ_S and all τ values computed. **Done** (hybrid excerpt, seeds 1–5, `e28143c`; `runs/phase0_replicates.json`): S = 532.0 ± 7.6 bits/s (σ_S 1.4% of S), so δ = 2σ_S = 15.3 bits/s (2.9%). τ: S_track 14.4 bits/s, C 0.15 bits, eligible units 4.6, suspected splits 2.2, near-noise share 0.002, spikes removed 0.16 percentage points, flagged pairs 40, hybrid median agreement 0.0055. Hybrid: median agreement 0.95, 30–32 of 40 recovered (unrecovered units are mostly the smallest), no HD pair merged; 35–37 hybrid copies excluded per sort. |
 | 8.2 | θ_ref sanity floor | On moving cycles, report circular correlation (Fisher–Lee, which needs no mean direction; open-field heading is near-uniform) and angular offset between θ_ref and tracked heading. Pass if circular correlation ≥ 0.8, i.e. θ_ref is still clearly a heading signal. This is a floor, never an objective: departures from tracking are expected. Prototype: 0.81–0.83. |
 | 8.3 | Reference invariance | Build θ_ref from two default sorts without hybrid insertion (reserved seeds 1000 and 1001). Score at least three other sorts against both references. Pass if, for every pair of sorts, ΔS differs between the two references by < 0.25 δ. (What matters is that the choice of reference sort doesn't change comparisons; agreement between the two θ_ref series themselves is reported only.) Prototype (references from seeds 1000/1001; sorts: default seeds 1 and 2, and an `extra-settings`-branch sort; all cleaned per §6): spreads 0.2–0.7 bits/s, against 2.0–4.3 bits/s when the reference sorts were themselves among the compared sorts (self-leak, §8.4). θ_ref series: Fisher–Lee 0.944; median difference < 0.001°, 2.3% of cycles differ by > 45° (low-spike cycles). |
 | 8.4 | Self-leak check | On the default sort, compute S against the full-population θ_ref and against a depth-split version (θ_ref from the top half scores bottom-half units and vice versa, with a 150 µm buffer). Pass if they differ by < 0.25 δ. If not, adopt the split for all runs. |
