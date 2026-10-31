@@ -190,12 +190,6 @@ def run_matching(ops, X, U, ctc, device=torch.device('cuda')):
 
     Xres = X.clone()
     lam = 20
-
-    fused = cuda_kernels.available(device)
-    if fused:
-        B = B.contiguous()
-        nm = nm.contiguous()
-        ctc = ctc.contiguous()
     NT = B.shape[1]
 
     # Cf is shape (n_units, n_times). Its max over units is computed in full once;
@@ -206,6 +200,13 @@ def run_matching(ops, X, U, ctc, device=torch.device('cuda')):
     Cf[:, -nt:] = 0
     Cfmax, imax = torch.max(Cf, 0)
     del Cf
+
+    if cuda_kernels.available(device):
+        fast = ops['settings'].get('fast_matching', False)
+        k = _peel_fused(B.contiguous(), nm.contiguous(), ctc.contiguous(), U.contiguous(),
+                        W, Xres, Cfmax, imax, st, amps, th_amps, Th, nt, max_peels, fast)
+        if k is not None:
+            return st[:k], amps[:k], th_amps[:k], Xres
 
     for t in range(max_peels):
         Cmax  = max_pool1d(Cfmax.unsqueeze(0).unsqueeze(0), (2*nt+1), stride=1, padding=(nt))
@@ -246,26 +247,75 @@ def run_matching(ops, X, U, ctc, device=torch.device('cuda')):
             n += 1
         for j in range(n):
             Xres[:, iX[j::n] + tiwave]  -= amp[j::n] * torch.einsum('ijk, jl -> kil', U[iY[j::n,0]], W)
-            if fused:
-                cuda_kernels.matching_bupdate(
-                    B, ctc, iX[j::n,0].contiguous(), iY[j::n,0].contiguous(),
-                    amp[j::n,0].contiguous(), nt
-                    )
-            else:
-                B[:, iX[j::n] + trange]  -= amp[j::n] * ctc[:,iY[j::n,0],:]
+            B[   :, iX[j::n] + trange]  -= amp[j::n] * ctc[:,iY[j::n,0],:]
 
         cols = torch.unique(iX + trange)
-        if fused:
-            cuda_kernels.matching_colmax(B, nm, cols, nt, Cfmax, imax)
-        else:
-            cols = cols[(cols >= nt) & (cols < NT - nt)]
-            Cfmax[cols], imax[cols] = torch.max(torch.relu(B[:, cols])**2 / nm.unsqueeze(-1), 0)
+        cols = cols[(cols >= nt) & (cols < NT - nt)]
+        Cfmax[cols], imax[cols] = torch.max(torch.relu(B[:, cols])**2 / nm.unsqueeze(-1), 0)
 
     st = st[:k]
     amps = amps[:k]
     th_amps = th_amps[:k]
 
     return  st, amps, th_amps, Xres
+
+
+def _peel_fused(B, nm, ctc, U, W, Xres, Cfmax, imax, st, amps, th_amps, Th, nt,
+                max_peels, fast):
+    """The peel loop of `run_matching` with the fused CUDA kernels: a few kernels and
+    one host sync per peel instead of ~55 small operations and three syncs. Same
+    results bit for bit, unless `fast` (the residual's template projection is then
+    computed in a kernel instead of by cuBLAS, which can differ at float rounding).
+    Returns the number of spikes found, or None if nt is too large for the kernels
+    (nothing is modified then).
+    """
+    NT = B.shape[1]
+    device = B.device
+    flags = torch.empty(NT, dtype=torch.uint8, device=device)
+    peaks = torch.empty(NT + 1, dtype=torch.int64, device=device)  # count, then columns
+    iYbuf = torch.empty(NT, dtype=torch.int64, device=device)
+    head = 1025   # count and first 1024 peaks, read back in one copy
+    host = torch.empty(head, dtype=torch.int64, pin_memory=True)
+    k = 0
+
+    for t in range(max_peels):
+        if not cuda_kernels.matching_peaks(Cfmax, nt, Th**2, flags, peaks):
+            return None
+        host.copy_(peaks[:head])
+        nsp = int(host[0])
+        if nsp == 0:
+            break
+        if nsp < head:
+            iX_host = host[1:1+nsp].numpy()
+        else:
+            iX_host = peaks[1:1+nsp].cpu().numpy()
+        if k + nsp > st.shape[0]:
+            raise RuntimeError(f'More than {st.shape[0]} spikes in one batch')
+
+        iX = peaks[1:1+nsp]
+        cuda_kernels.matching_record(B, nm, imax, Cfmax, iX, nt, st[k:], amps[k:],
+                                     th_amps[k:], iYbuf)
+        iY = iYbuf[:nsp]
+        amp = amps[k:k+nsp, 0]
+
+        # Same interleaved groups as the PyTorch loop: the smallest n >= 2 for which
+        # no two peaks n apart are within 2*nt samples (capped at nsp).
+        n = 2
+        if nsp > 2:
+            close = np.searchsorted(iX_host, iX_host + 2*nt, side='right') - np.arange(nsp) - 1
+            n = max(2, min(nsp, int(close.max()) + 1))
+        for j in range(n):
+            if fast:
+                cuda_kernels.matching_xres_fast(Xres, U, W, iX[j::n], iY[j::n], amp[j::n])
+            else:
+                E = torch.einsum('ijk, jl -> kil', U[iY[j::n]], W).contiguous()
+                cuda_kernels.matching_xres(Xres, E, iX[j::n], amp[j::n])
+            cuda_kernels.matching_bupdate(B, ctc, iX[j::n], iY[j::n], amp[j::n], nt)
+
+        cuda_kernels.matching_colmax(B, nm, iX, nt, Cfmax, imax)
+        k += nsp
+
+    return k
 
 
 def merging_function(ops, Wall, clu, st, tF, r_thresh=0.5, mode='ccg', check_dt=True,
