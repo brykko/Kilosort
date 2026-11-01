@@ -1,8 +1,18 @@
 # Kilosort 4 settings search: evaluation spec
 
-**Status:** v0.8, frozen for search round 1 (commit and hashes in `runs/frozen.json` and the latest `freeze` record in the search log). Items marked **[DECIDE]** need your call; items marked **[PHASE 0]** are numbers set by the validation runs and then frozen.
+**Status:** v0.9, agreed after round 1; harness changes and the Phase 0 re-checks (§8, v0.9 note) pending, then re-frozen. v0.8 was frozen for round 1 (commit and hashes in `runs/frozen.json` and the `freeze` records in the search log). Items marked **[DECIDE]** need your call; items marked **[PHASE 0]** are numbers set by the validation runs and then frozen.
 
 **Freezing:** the spec is frozen when (1) every [DECIDE] item is settled, (2) Phase 0 has passed and its [PHASE 0] numbers are filled in, and (3) the spec and the evaluation harness are committed together, with the commit hash and the SHA-256 of every harness file recorded at the top of the search log. Any later change gets a new version number and a log entry stating what changed and why. A change to the score, guards or thresholds after the search has started invalidates comparisons made under the old version, and those candidates must be re-scored.
+
+### Changes in v0.9
+
+Agreed after round 1 (`round1_results.md`). Guiding principle: the objective S decides how finely units are split; guards protect only against what S can't see, namely artefact units, duplicated spikes and lost or merged known units.
+
+- **No refractory criterion for scored units** (§6.4). The ≤ 10% contamination limit selected units on the dimension the search optimises (separation), and as a step: a merged unit cleaned from 30% to 15% contamination earned nothing, and one slipping from 9% to 11% vanished from S. S itself penalises mixing differently tuned cells, and misses only mixing of similarly tuned ones (§12). θ_ref is unchanged: it stays as built from the reference sort under the v0.6 eligibility.
+- **G3 (suspected splits) is reported, not a guard** (§7.1, §7.3). S neither rewards nor much penalises splits (two halves score about what the whole did; −2.1 bits/s for 5% splits in §8.6), so selecting on S never drives towards over-splitting, and the best sort for decoding may well carry some splits as the price of separating more cells. Duplicates are a different matter (they count the same spikes twice and do inflate S) and stay covered by §6.3 cleaning and G6.
+- **G5 (artefact share) has an absolute cap: ≤ 1% of S** (§7.1). Its old tolerance (default + τ, about 0.3% of S) came from the small spread between default replicates and failed runs over a few bits/s of near-noise units.
+- **G1's note** no longer relies on G3 for fragmentation.
+- **Round 1 is re-judged** under v0.9 by re-scoring its sorts (`--existing-sort`, no re-sorting), after the Phase 0 re-checks below; re-scores are logged and not counted in the budget.
 
 ### Changes in v0.8
 
@@ -207,7 +217,7 @@ Only spikes inside the flagged lag window are removed, so a partial duplicate ke
 After §6.1–6.3, a unit is eligible for S if all hold:
 
 - ≥ 100 spikes in each 10-min segment.
-- Refractory-violation contamination estimate (1.5 ms refractory period, 0.25 ms censored period) ≤ 10%.
+- (Removed in v0.9: refractory-violation contamination ≤ 10%. The contamination estimate is still computed and reported. θ_ref (§5.1) keeps the v0.6 criteria, including this one.)
 - Passes the waveform screen (`tuning/waveform.py`, on KS4's un-whitened templates): not Bombcell "noise" under py_bombcell's default thresholds (≤ 2 peaks, ≤ 1 trough, peak–trough duration 100–1150 µs, baseline ≤ 0.3, second peak ≤ 0.8 × trough, exponential spatial decay 0.01–0.1 per µm), and channels with ≥ 20% of the peak channel's peak-to-peak amplitude span ≤ 300 µm. Bombcell's other classes (non-somatic, MUA) are not used: they are of limited reliability, and positive-going (non-somatic by Bombcell's rule) units here are clearly neural and often strongly heading-tuned. Prototype: 4–6 of ~360–376 spike-eligible units fail.
 - Not matched to an inserted hybrid unit.
 
@@ -223,10 +233,10 @@ Tolerances marked τ are 2 × the SD of that quantity across the five default re
 
 | # | Guard | Pass condition | What it catches |
 |---|---|---|---|
-| G1 | Unit count | Eligible units ≥ 0.8 × default (no upper bound; fragmentation is left to G3, G4, G6, G7) | Wholesale loss of units |
-| G3 | Suspected splits | Count ≤ default + τ_split (§7.3) | Oversplitting, which S under-penalises |
+| G1 | Unit count | Eligible units ≥ 0.8 × default (no upper bound) | Wholesale loss of units |
+| (G3) | Suspected splits | Reported only (v0.9); count per §7.3 | Over-splitting, left to S to weigh against better separation |
 | G4 | Hybrid recovery | §7.4 | Splits, merges, misses on known units; merges of differently tuned HD pairs |
-| G5 | Artefact share | Share of S from eligible units that fail a *stricter* version of the waveform screen (a margin inside each noise threshold: duration ≤ 1100 µs, baseline ≤ 0.25, second peak ≤ 0.7 × trough, decay 0.0125–0.09 per µm, footprint ≤ 250 µm) ≤ default + τ | Near-noise units that only just passed eligibility |
+| G5 | Artefact share | Share of S from eligible units that fail a *stricter* version of the waveform screen (a margin inside each noise threshold: duration ≤ 1100 µs, baseline ≤ 0.25, second peak ≤ 0.7 × trough, decay 0.0125–0.09 per µm, footprint ≤ 250 µm) ≤ 1% of S (v0.9; was default + τ) | Near-noise units that only just passed eligibility |
 | G6 | Cleaning burden | Fraction of spikes removed by §6.2–6.3, and flagged-pair count, ≤ default + τ | Settings that generate duplicates or artefacts, even when the harness neutralises them |
 | G7 | Untuned units | Number of eligible units with S_i below the 25th percentile of default's S_i ≥ 0.9 × default | Selection pressure against non-HD cells (circularity) |
 
@@ -243,7 +253,7 @@ A pair counts if all hold:
 - template similarity ≥ 0.8 (KS4's `CCG.similarity`, maximum over lags);
 - cross-correlogram rate within ±1.5 ms < 0.25 × rate at 2–10 ms.
 
-The sharp ±1.5 ms window is deliberate. Cells with different tuning have broad cross-correlogram dips (tens to hundreds of ms) that depress both windows equally, so they are not counted. Nearby genuine pairs whose overlapping spikes the sorter cannot resolve also show a narrow dip; they appear in default and candidates alike, so the comparative guard tolerates them.
+The sharp ±1.5 ms window is deliberate. Cells with different tuning have broad cross-correlogram dips (tens to hundreds of ms) that depress both windows equally, so they are not counted. Nearby genuine pairs whose overlapping spikes the sorter cannot resolve also show a narrow dip; they appear in default and candidates alike. Since v0.9 the count is reported for every run but does not gate anything.
 
 ### 7.4 Hybrid ground truth
 
@@ -295,6 +305,8 @@ Not counted in the search budget. The search may not start until every item pass
 | 8.10 | Waveform adjudication of flagged ≤ 150 µm pairs | At coincident events, fit both templates jointly to the filtered data. Duplicate if the smaller unit's conditional amplitude has median < 0.3 × its usual amplitude. Report agreement with §6.3. **Not informative for KS4** (`runs/phase0_adjudication.json`, `tuning/adjudicate.py`): only 2 of 211 flagged pairs fall below 0.3 (median ratio 1.03). KS4 makes cross-unit duplicates by peeling: when one template leaves a residual (timing jitter, amplitude variation), a second template fits it, so a joint fit reproduces that decomposition. Example: pair 702/707, where 98% of the smaller unit's 661 spikes coincide with the larger unit's and its template is a residual-like shape, scores 0.36. **Decision:** dropped; false flags are covered by the jittered-copy null (8.8). |
 | 8.11 | Reference sort and hybrid effect | One default run on the excerpt without hybrid insertion, reserved seed 1000. It serves as the reference sort (§5.1); comparing a no-hybrid default run with the 8.1 runs (same seed, with and without insertion) reports the insertion's effect on S and unit counts. **Done:** seed 1 at `e28143c` without vs with insertion: S 581.9 vs 577.5 bits/s (−0.55σ_S), eligible units 372 vs 361, 35 hybrid copies excluded. |
 
+**v0.9 re-checks** (before round 1 is re-judged): re-score the five default replicates under the v0.9 eligibility (new σ_S, δ, τ, σ_track); repeat 8.5 (time-shift control) and 8.6 (perturbations: merges of differently tuned units and contamination must still lower S by ≥ 3σ_S without the refractory filter); report how many units the change admits.
+
 ## 9. Search, selection, reporting
 
 **Budget:** 100 KS4 runs on the excerpt, including replicates and ablations; 15 of them are reserved for §9.2–9.3.
@@ -319,7 +331,7 @@ Not counted in the search budget. The search may not start until every item pass
 ## 10. Transfer test: MEC open-field recording (reported, not a gate)
 
 - Sort the MEC search excerpt (minutes 20–40) with default and winner, 3 seeds each.
-- Score with tracked-position S (Appendix A) plus G1, G3, G5, G6 and G7.
+- Score with tracked-position S (Appendix A) plus G1, G5, G6 and G7, with suspected splits (§7.3) reported.
 - If the winner does not beat default there, treat the settings as specific to the target recording: do not apply them to the MEC data without a search of its own under this spec.
 
 ## 11. Log (append-only)
@@ -338,7 +350,7 @@ A spec change during the search gets a new version and a new `freeze` record (re
 
 **Material:**
 - S rewards heading information. G7 and the matched-unit check limit, but do not remove, pressure against untuned cells.
-- Merging two similarly tuned cells loses little information, so such merges cost little in S. This is a general blind spot of tuning-based scores (it applied equally to the v0.1 position score), not specific to head direction. How often it arises depends on how similar the tuning of neighbouring cells on the probe is in this recording. G3 and G4 cover it, and the §8.6 perturbation audit measures its size.
+- Merging two similarly tuned cells loses little information, so such merges cost little in S. This is a general blind spot of tuning-based scores (it applied equally to the v0.1 position score), not specific to head direction. How often it arises depends on how similar the tuning of neighbouring cells on the probe is in this recording. G4 covers it (G3 is reported only since v0.9), and the §8.6 perturbation audit measures its size.
 - Hybrid units are cleaner than real ones (stereotyped waveforms, drift taken from the sorter's own estimate). Used only as a guard for this reason.
 - Sorts are bit-reproducible for a given seed (§2), so seed replicates measure only the variability that comes from the seeds; nothing is left from GPU nondeterminism.
 - θ_ref may carry shared signal other than heading. Held-out prediction rewards any shared structure a single angle can express (for example a position-related component in a mixed population). The §8.2 floor limits this; whether θ_ref's departures from tracking can be predicted from position has not been checked.
