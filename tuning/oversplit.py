@@ -53,6 +53,8 @@ valid = ref['moving'] & (frac <= 0.5) & np.isfinite(ref['theta_ref'])
 
 def S_of(by, passes):
     units = [c for c in eligible_units(by, args.duration, None) if passes[c]]
+    if not units:                       # e.g. time splits at k = 2: every fragment lies in one half
+        return 0.0, 0, 0
     s = score.corrected_scores(ref['theta_ref'], cycle_counts(by, units, bounds), dur, valid, half)
     return float(s.sum()), len(units), sum(by[c].size for c in units)
 
