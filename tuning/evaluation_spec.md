@@ -4,7 +4,7 @@
 
 **Freezing:** the spec and the evaluation harness are committed together, with the commit hash and the SHA-256 of every harness file recorded in the search log. Any later change gets a new version number and a new `freeze` record stating what changed and why. A change to the score, guards or thresholds after the search has started invalidates comparisons made under the old version, and those candidates must be re-scored.
 
-**Principle:** the objective S decides how finely units are split. The guards (§7) protect only against what S can't see: artefact units, duplicated spikes, lost or merged known units, and loss of untuned cells.
+**Principle:** the objective S decides how finely units are split. The guards (§7) protect only against what S can't see: artefact units, duplicated spikes, lost or merged known units, and loss of untuned cells. A check dropped from the criteria is removed from the harness and these documents, not kept as a reported quantity.
 
 **History:** earlier versions and the reasons for each change are in git (`git log -p -- tuning/evaluation_spec.md`). v0.11 removes the checks that are no longer criteria and names the guards.
 
