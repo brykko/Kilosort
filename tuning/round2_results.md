@@ -59,6 +59,23 @@ S still rises at γ 4, but slowly: about 280 more eligible units for +13.5 bits/
 approach their limit. γ 6–8 and neighbours 3 were not run: their first-pass cluster counts (estimated
 7000–8500) put template matching beyond GPU memory.
 
+**Seed 2 and the stopping rule.** γ 4: ΔS +316.6 (seeds 1–2 mean +315.3); γ 8 (now within GPU memory
+after the sparse template cross-correlations): +327.3 and +332.8 (mean +330.1), all guards passing.
+Units that reproduce across seeds (`reproducibility.py`, seeds 1 and 2):
+
+| Configuration | Eligible units | Reproduced | Units reproduced |
+|---|---|---|---|
+| Default | ~770 | 85% | ~660 |
+| Final merge 0.7 | ~795 | 87% | ~690 |
+| `standard` | ~1030 | 79% | ~810 |
+| **R4 (γ 2)** | ~1410 | 64% | **~905** |
+| γ 4 | ~1820 | 48% | ~870 |
+| γ 8 | ~2460 | 33% | ~815 |
+
+The number of reproduced units peaks at γ 2 and falls beyond it, while S creeps up (+15 per doubling
+of γ, about δ/2) on units that each carry 2–5% of a typical unit's S: the extra units are
+seed-dependent fragments. By the spec's resolution stopping rule (§9.2), the operating point is R4.
+
 ## Over-splitting check (R4, seed 1; `oversplit.py`)
 
 Every eligible unit split into k fragments, eligibility re-applied, S scored (baseline 1312.7):

@@ -1,12 +1,12 @@
 # Kilosort 4 settings search: evaluation spec
 
-**Status:** v0.12, frozen (latest `freeze` record in the search log and `runs/frozen.json`).
+**Status:** v0.13, frozen (latest `freeze` record in the search log and `runs/frozen.json`).
 
 **Freezing:** the spec and the evaluation harness are committed together, with the commit hash and the SHA-256 of every harness file recorded in the search log. Any later change gets a new version number and a new `freeze` record stating what changed and why. A change to the score, guards or thresholds after the search has started invalidates comparisons made under the old version, and those candidates must be re-scored.
 
 **Principle:** the objective S decides how finely units are split. The guards (§7) protect only against what S can't see: artefact units, duplicated spikes, lost or merged known units, and loss of untuned cells. A check dropped from the criteria is removed from the harness and these documents, not kept as a reported quantity.
 
-**History:** earlier versions and the reasons for each change are in git (`git log -p -- tuning/evaluation_spec.md`). v0.11 removed the checks that are no longer criteria and named the guards; v0.12 removes one more.
+**History:** earlier versions and the reasons for each change are in git (`git log -p -- tuning/evaluation_spec.md`). v0.11 removed the checks that are no longer criteria and named the guards; v0.12 removes one more; v0.13 adds the resolution stopping rule (§9.2).
 
 ---
 
@@ -237,6 +237,7 @@ Not counted in the search budget. The search may not start until every item pass
 ### 9.2 Selection
 - Winner: highest mean ΔS over ≥ 3 replicates among candidates passing all guards on every replicate and with mean ΔS_track ≥ δ_track/2 (§5.4).
 - The best of ~100 runs beats default by ~2–2.5σ by chance alone, which is why single runs never decide.
+- **Resolution stopping rule.** S is cross-validated, so units that add nothing don't lower it: past the real cells it plateaus rather than peaks, and "the maximum" is not a usable target. Among configurations that differ mainly in resolution, choose the one at which the number of eligible units that reproduce across seeds is largest (`tuning/reproducibility.py`: a unit reproduces if it has a match, agreement ≥ 0.5, in another seed of the same settings). Beyond that point the extra units are seed-dependent fragments, and some reproducible units break up. Cross-checks: the units a step adds should carry a substantial share of a typical unit's S (ΔS per added eligible unit against default's mean S per unit), and each step should gain ≥ δ/2. Round 2's γ sweep (`round2_results.md`): reproduced units ~660 (default), ~905 (γ 2), ~870 (γ 4), ~815 (γ 8), so γ 2.
 
 ### 9.3 Ablation
 - Revert each of the winner's changes individually (1 replicate each). Drop changes whose reversion costs < δ/2 and passes all guards; re-replicate the simplified winner (3 seeds).
