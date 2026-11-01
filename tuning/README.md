@@ -15,6 +15,7 @@ run them.
 | `round1_results.md` | Round 1 results |
 | `search_round2.md` | Round 2 plan (early splitting kept clean; merge-tree fixes) |
 | `round2_results.md` | Round 2 results |
+| `search_round3.md` | Round 3 plan (detection, features, drift) |
 | `config.json` | Paths and fixed parameters used by the wrapper |
 | `run_candidate.py` | Wrapper: `freeze`, and `run` (sort → clean → evaluate → compare → log) |
 | `run_sort.py` | One KS4 sort from this checkout, with `provenance.json`; `--cache` reuses unaffected stages |
@@ -32,6 +33,7 @@ run them.
 | `replicates.py`, `alpha_scan.py`, `self_leak.py`, `perturb.py`, `adjudicate.py`, `reference_heldout.py`, `reference_invariance.py`, `compare_references.py` | Phase 0 checks (§8) |
 | `cluster_diagnostic.py`, `round2_diagnostic.py`, `same_sort.py` | Round preparation: clustering and merge-tree diagnostics, exact sort comparison |
 | `oversplit.py` | S's response to splitting a sort's units past its real cells (random, amplitude, time splits) |
+| `peel_diagnostic.py` | Whether template matching's peel limit binds |
 | `reproducibility.py` | Fraction of a sort's eligible units that reappear in another seed of the same settings |
 | `ring_reference.py` | Superseded HMM reference (kept for the record) |
 
