@@ -97,14 +97,18 @@ def check_CCG(st1, st2=None, nbins = 500, tbin  = 1/1000, acg_threshold=0.2,
             is_refractory, cross_refractory = False, False
     return is_refractory, cross_refractory, R12
 
-def similarity(Wall, W, nt=61):
-    WtW = conv1d(W.reshape(-1, 1,nt), W.reshape(-1, 1 ,nt), padding = nt) 
-    WtW = torch.flip(WtW, [2,])
+def similarity(Wall, W, nt=61, block=256):
+    """Maximum over lags of the normalised cross-correlation between each pair of templates
+    (units x units). Computed in blocks of `block` rows, which gives the same values as the whole
+    array at once while keeping the units x units x 36 and x 123 intermediates small."""
+    WtW = conv1d(W.reshape(-1, 1,nt), W.reshape(-1, 1 ,nt), padding = nt)
+    WtW = torch.flip(WtW, [2,]).cpu()
     mu = (Wall**2).sum((1,2), keepdims=True)**.5
     Wnorm = Wall / (1e-6 + mu)
-    UtU = torch.einsum('ilk, jlm -> ijkm',  Wnorm, Wnorm)
-    similar_templates = torch.einsum('ijkm, kml -> ijl', UtU.cpu(), WtW.cpu()).numpy()
-    similar_templates = similar_templates.max(axis=-1)
+    similar_templates = np.empty((len(Wall), len(Wall)), np.float32)
+    for a in range(0, len(Wall), block):
+        UtU = torch.einsum('ilk, jlm -> ijkm',  Wnorm[a:a+block], Wnorm)
+        similar_templates[a:a+block] = torch.einsum('ijkm, kml -> ijl', UtU.cpu(), WtW).numpy().max(axis=-1)
     return similar_templates
 
 def refract(iclust2, st0, acg_threshold=0.2, ccg_threshold=0.25):
