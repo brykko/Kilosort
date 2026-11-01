@@ -50,14 +50,19 @@ def load_units(sort):
     return {int(c): st[clu == c] for c in ids}, {int(c): float(np.median(y[clu == c])) for c in ids}
 
 
-def eligible_units(by_cluster, duration):
-    """Spec §6.4, simplified: >= 100 spikes per half, refractory contamination <= 10%."""
+def contamination(t, duration):
+    """Refractory-violation contamination estimate (1.5 ms refractory, 0.25 ms censored period)."""
+    return np.sum(np.diff(np.sort(t)) < 1.5e-3) * duration / (2 * (1.5e-3 - 0.25e-3) * t.size ** 2)
+
+
+def eligible_units(by_cluster, duration, max_contamination=0.10):
+    """Spec §6.4, simplified: >= 100 spikes per half and, unless max_contamination is None,
+    refractory contamination <= max_contamination (0.10 up to v0.8 and for theta_ref; none since v0.9)."""
     out = []
     for c, t in by_cluster.items():
-        t = np.sort(t)
         if min(np.sum(t < duration / 2), np.sum(t >= duration / 2)) < 100:
             continue
-        if np.sum(np.diff(t) < 1.5e-3) * duration / (2 * (1.5e-3 - 0.25e-3) * t.size ** 2) <= 0.10:
+        if max_contamination is None or contamination(t, duration) <= max_contamination:
             out.append(c)
     return out
 

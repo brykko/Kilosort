@@ -1,5 +1,6 @@
-"""Compare a candidate sort with default (spec §7): guards G1-G3 and G5-G9 from evaluation.json
-files, and the matched-unit report (§7.6). G4 applies when the sorts were evaluated with hybrid truth.
+"""Compare a candidate sort with default (spec §7): guards G1, G2 and G4-G9 from evaluation.json
+files, suspected splits (§7.3, reported only since v0.9), and the matched-unit report (§7.6). G4
+applies when the sorts were evaluated with hybrid truth.
 
 Default is one or more replicate sorts (each with evaluation.json). Each guard's quantity is
 compared with the replicate mean; tolerances tau are 2 x the SD across replicates (§7), so with a
@@ -20,6 +21,7 @@ from cleaning import load_clean_units
 TOL_S = 0.4e-3
 MATCH_UM = 100.0
 MATCH_MIN = 0.5
+G5_MAX_SHARE = 0.01     # spec v0.9: near-noise units may carry at most 1% of S
 
 
 def agreement(ta, tb):
@@ -61,8 +63,10 @@ def matched_report(cand, default, matches):
 
 def guards(cand, defaults):
     def check(name, value, default_value, ok, tau=False):
-        """ok(value, default, tau); tau=False for guards without a tolerance, None if it's unknown."""
-        status = 'no tau' if tau is None else ('pass' if ok(value, default_value, tau) else 'FAIL')
+        """ok(value, default, tau); tau=False for guards without a tolerance, None if it's unknown;
+        ok=None for a quantity that is reported, not a guard."""
+        status = ('report' if ok is None else 'no tau' if tau is None
+                  else 'pass' if ok(value, default_value, tau) else 'FAIL')
         return {'guard': name, 'candidate': value, 'default': default_value,
                 'tau': tau if tau is not False else None, 'status': status}
 
@@ -91,9 +95,9 @@ def guards(cand, defaults):
         check('G1 eligible units', cand['n_eligible'], float(np.mean([e['n_eligible'] for e in defaults])),
               lambda v, d, t: v >= 0.8 * d),
         relative('G2 S_track (backstop)', 'S_track', lambda v, d, t: v >= d - 5 * t),
-        relative('G3 suspected splits', 'n_suspected_splits', at_most),
+        relative('(G3) suspected splits, reported', 'n_suspected_splits', None),
         *hybrid_guards(),
-        relative('G5 near-noise share of S', 'S_share_near_noise', at_most),
+        relative('G5 near-noise share of S', 'S_share_near_noise', lambda v, d, t: v <= G5_MAX_SHARE),
         relative('G6 spikes removed by cleaning', 'fraction_spikes_removed', at_most),
         relative('G6 flagged duplicate pairs', 'n_flagged_pairs', at_most),
         # G7: candidate units below the 25th percentile of default's S_i, against default's own count

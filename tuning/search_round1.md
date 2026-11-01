@@ -145,7 +145,8 @@ every guard, one further step in the same direction is run. At most 4 such runs.
 - **Leader:** the best configuration replicated on 3 seeds (seed 1 plus 2 and 3), starting with
   default. A configuration becomes leader if its 3-seed mean ΔS exceeds the current leader's by
   ≥ δ/2, it passes every guard on every replicate, its mean ΔS over default is ≥ δ, and its mean
-  ΔS_track over default is ≥ δ_track/2 = 7.7 bits/s (§5.4; added in spec v0.8, after run 023).
+  ΔS_track over default is ≥ δ_track/2 (§5.4; added in spec v0.8, after run 023: 7.7 bits/s; 13.6
+  under v0.9). Since spec v0.9, δ = 28.6 and the round is re-judged on re-scored runs (`round1_results.md`).
 - **Replication trigger:** a single run is replicated when its ΔS exceeds the leader's mean by
   ≥ δ/2 and it passes every guard. This applies §9.1 to round 1: single runs never become leader.
 - **Carried forward:** each setting's best screen level, if it gained ≥ δ/2 over default and

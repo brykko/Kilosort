@@ -35,7 +35,7 @@ source = [int(c) for c, lab in zip(acg['cluster'], acg['raw_acg_label']) if lab 
 bounds, dur, moving, hd = theta_cycles(by_cluster, source, np.load(args.tracking), args.t0, args.duration)
 frac = masked_fraction(bounds, mask)
 usable = moving & (frac <= 0.5)
-units = eligible(sort, by_cluster, args.duration)[0]
+units = eligible(sort, by_cluster, args.duration, max_contamination=0.10)[0]   # v0.6 criteria (spec §6.4)
 theta = internal_direction(cycle_counts(by_cluster, units, bounds), dur * (1 - frac), usable, hd, 'poisson_mean')[-1]
 theta[~usable] = np.nan
 

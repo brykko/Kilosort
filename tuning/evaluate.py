@@ -16,6 +16,7 @@ import hybrid
 import waveform
 from cleaning import load_clean_units, run_cleaning
 from score import eligible, score_sort
+from theta_reference import contamination
 
 SPLIT_DIST_UM = 50.0
 SPLIT_SIMILARITY = 0.8
@@ -70,6 +71,7 @@ def evaluate(sort, reference, raw_artefacts, t0, duration, hybrid_truth=None):
         'raw_artefacts_sha256': sha256(raw_artefacts),                                    # G8
         'n_units': len(by_cluster), 'n_noise_units': sum(not v[1] for v in screen.values()),
         'n_eligible': len(units),                                                          # G1
+        'n_eligible_contaminated': int(sum(contamination(by_cluster[c], duration) > 0.10 for c in units)),
         'S': sc['S'], 'S_track': sc['S_track'], 'C': sc['C'],                              # S, G2, G9
         'n_suspected_splits': len(splits),                                                 # G3
         'S_share_near_noise': sum(sc['S_i'][c] for c in near_noise) / sc['S'],             # G5

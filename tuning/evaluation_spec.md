@@ -1,6 +1,6 @@
 # Kilosort 4 settings search: evaluation spec
 
-**Status:** v0.9, agreed after round 1; harness changes and the Phase 0 re-checks (§8, v0.9 note) pending, then re-frozen. v0.8 was frozen for round 1 (commit and hashes in `runs/frozen.json` and the `freeze` records in the search log). Items marked **[DECIDE]** need your call; items marked **[PHASE 0]** are numbers set by the validation runs and then frozen.
+**Status:** v0.9, frozen after round 1 (latest `freeze` record in the search log and `runs/frozen.json`). Its Phase 0 re-checks passed (§8, v0.9 note). v0.7–0.8 were frozen for round 1's runs. Items marked **[DECIDE]** need your call; items marked **[PHASE 0]** are numbers set by the validation runs and then frozen.
 
 **Freezing:** the spec is frozen when (1) every [DECIDE] item is settled, (2) Phase 0 has passed and its [PHASE 0] numbers are filled in, and (3) the spec and the evaluation harness are committed together, with the commit hash and the SHA-256 of every harness file recorded at the top of the search log. Any later change gets a new version number and a log entry stating what changed and why. A change to the score, guards or thresholds after the search has started invalidates comparisons made under the old version, and those candidates must be re-scored.
 
@@ -165,9 +165,9 @@ Units matched to inserted hybrid units (§7.4) are excluded from S.
 
 All comparisons are paired on the same excerpt: ΔS = S_candidate − S_default.
 
-- σ_S: SD of S across ≥ 5 default replicates with different seeds; 8.0 bits/s (§8.1), so δ = 16.0 bits/s.
+- σ_S: SD of S across ≥ 5 default replicates with different seeds; 14.3 bits/s under v0.9 eligibility (§8, v0.9 note; 8.0 up to v0.8), so δ = 28.6 bits/s (16.0 up to v0.8).
 - δ = max(δ_practical, 2σ_S), with δ_practical = 1% of default S.
-- σ_track: SD of S_track across the same replicates; 7.7 bits/s, so δ_track = 2σ_track = 15.3 bits/s.
+- σ_track: SD of S_track across the same replicates; 13.6 bits/s under v0.9 (7.7 in v0.8), so δ_track = 2σ_track = 27.3 bits/s and δ_track/2 = 13.6.
 - A candidate *improves* if mean ΔS ≥ δ over its replicates, mean ΔS_track ≥ δ_track/2, and every guard passes.
 
 Median decoding error (degrees) is reported for every evaluation but never used for decisions.
@@ -305,7 +305,10 @@ Not counted in the search budget. The search may not start until every item pass
 | 8.10 | Waveform adjudication of flagged ≤ 150 µm pairs | At coincident events, fit both templates jointly to the filtered data. Duplicate if the smaller unit's conditional amplitude has median < 0.3 × its usual amplitude. Report agreement with §6.3. **Not informative for KS4** (`runs/phase0_adjudication.json`, `tuning/adjudicate.py`): only 2 of 211 flagged pairs fall below 0.3 (median ratio 1.03). KS4 makes cross-unit duplicates by peeling: when one template leaves a residual (timing jitter, amplitude variation), a second template fits it, so a joint fit reproduces that decomposition. Example: pair 702/707, where 98% of the smaller unit's 661 spikes coincide with the larger unit's and its template is a residual-like shape, scores 0.36. **Decision:** dropped; false flags are covered by the jittered-copy null (8.8). |
 | 8.11 | Reference sort and hybrid effect | One default run on the excerpt without hybrid insertion, reserved seed 1000. It serves as the reference sort (§5.1); comparing a no-hybrid default run with the 8.1 runs (same seed, with and without insertion) reports the insertion's effect on S and unit counts. **Done:** seed 1 at `e28143c` without vs with insertion: S 581.9 vs 577.5 bits/s (−0.55σ_S), eligible units 372 vs 361, 35 hybrid copies excluded. |
 
-**v0.9 re-checks** (before round 1 is re-judged): re-score the five default replicates under the v0.9 eligibility (new σ_S, δ, τ, σ_track); repeat 8.5 (time-shift control) and 8.6 (perturbations: merges of differently tuned units and contamination must still lower S by ≥ 3σ_S without the refractory filter); report how many units the change admits.
+**v0.9 re-checks** (before round 1 is re-judged): re-score the five default replicates under the v0.9 eligibility (new σ_S, δ, τ, σ_track); repeat 8.5 (time-shift control) and 8.6 (perturbations: merges of differently tuned units and contamination must still lower S by ≥ 3σ_S without the refractory filter); report how many units the change admits. **All pass** (`runs/phase0_*_v0.9.json`; the v0.8 evaluations are kept as `evaluation_v0.8.json`):
+- *Replicates:* eligible units 771.8 ± 10.0 (365 under v0.8): the change admits about 407 units per sort with contamination > 10%. S = 1020 ± 14.3 bits/s, so σ_S/S is unchanged at 1.4% and δ = 28.6. S_track 834 ± 13.6. τ: S_track 27.3, C 0.19 (C is now −11.4: decoding with contaminated units is far more overconfident; G9 is relative, so unaffected), eligible units 20, near-noise share 0.0016 (default 0.0063, under the 1% cap), spikes removed 0.16 percentage points, flagged pairs 39 (cleaning is unchanged). Suspected splits 4.8 (reported only).
+- *8.5:* sensitivity (mean/SD) 71.2 at α = 0.25 s (72 under v0.8). Control rotations: S = +1.7 ± 6.9 bits/s (range −6.6 to +12.2) against 2σ_S = 28.6. Pass.
+- *8.6* (seed 1, 39 of 777 units, 5 draws, σ_S 14.3): merges of differently tuned units −63.6 bits/s (−4.4σ_S), drops −55.1 (−3.8σ_S), contamination −55.7 (−3.9σ_S, now through S itself rather than through units leaving eligibility), thinning −51.6 (−3.6σ_S). Splits −0.0 (S is indifferent; 23 of 39 meet the §7.3 rule). Duplicates +51.8 before cleaning, −1.7 after; G6 trips. Pass.
 
 ## 9. Search, selection, reporting
 

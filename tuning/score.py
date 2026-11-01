@@ -32,11 +32,11 @@ SCORE_PSEUDO_S = 0.25
 NULL_FRACTIONS = [k / 7 for k in range(1, 7)]
 
 
-def eligible(sort, by_cluster, duration, screen=None):
-    """Eligible units (§6.4: spike counts, refractory contamination, waveform screen) and the
-    subset failing the stricter screen (G5)."""
+def eligible(sort, by_cluster, duration, screen=None, max_contamination=None):
+    """Eligible units (§6.4: spike counts, waveform screen; since v0.9 no refractory criterion unless
+    max_contamination is given, as for theta_ref) and the subset failing the stricter screen (G5)."""
     screen = waveform.screen(sort) if screen is None else screen
-    units = [c for c in eligible_units(by_cluster, duration) if screen[c][1]]
+    units = [c for c in eligible_units(by_cluster, duration, max_contamination) if screen[c][1]]
     return units, [c for c in units if not screen[c][2]]
 
 
