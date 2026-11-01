@@ -228,12 +228,12 @@ Not counted in the search budget. The search may not start until every item pass
 
 ## 9. Search, selection, reporting
 
-**Budget:** 100 KS4 runs on the excerpt, including replicates and ablations; 15 of them are reserved for §9.2–9.3.
+**Budget:** no fixed cap; each round's plan says how its runs are spent. Selection and ablation (§9.2–9.3) get the runs they need. Sorts may reuse cached stages that their settings don't affect (`tuning/stage_cache.py`); a cached sort is bit-identical to a full one.
 
 ### 9.1 Search
 - The search runs in rounds, each with a plan written and frozen before its first run: round 1 (clustering resolution) is `search_round1.md`.
 - Each run is logged before its result is read (§11).
-- A run that improves on default (§5.4, single replicate) and passes all guards gets 2 further seed replicates before it can be the leader.
+- A configuration needs ≥ 3 seed replicates before it can be the leader; single runs never decide.
 
 ### 9.2 Selection
 - Winner: highest mean ΔS over ≥ 3 replicates among candidates passing all guards on every replicate and with mean ΔS_track ≥ δ_track/2 (§5.4).

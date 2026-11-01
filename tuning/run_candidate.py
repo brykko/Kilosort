@@ -164,7 +164,8 @@ def run(args):
     if not args.existing_sort:
         subprocess.run([PY, str(HERE / 'run_sort.py'), '--data', str(path('data')), '--probe', str(path('probe')),
                         '--n-chan-bin', str(CFG['n_chan_bin']), '--out', str(sort), '--seed', str(args.seed),
-                        '--settings', json.dumps(settings)],
+                        '--settings', json.dumps(settings),
+                        *(['--cache', str(path('stage_cache'))] if CFG.get('stage_cache') else [])],
                        check=True, stdout=open(folder / 'sort.log', 'w'), stderr=subprocess.STDOUT)
     t_sort = time.time() - t_start
     common = ['--raw-artefacts', str(path('raw_artefacts'))]

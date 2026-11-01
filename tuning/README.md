@@ -12,9 +12,12 @@ run them.
 |---|---|
 | `evaluation_spec.md` | The spec: score, cleaning, guards, Phase 0, search rules |
 | `search_round1.md` | Round 1 plan (clustering resolution): preparation results, screen, combination |
+| `round1_results.md` | Round 1 results |
+| `search_round2.md` | Round 2 plan (early splitting kept clean; merge-tree fixes) |
 | `config.json` | Paths and fixed parameters used by the wrapper |
 | `run_candidate.py` | Wrapper: `freeze`, and `run` (sort → clean → evaluate → compare → log) |
-| `run_sort.py` | One KS4 sort from this checkout, with `provenance.json` |
+| `run_sort.py` | One KS4 sort from this checkout, with `provenance.json`; `--cache` reuses unaffected stages |
+| `stage_cache.py` | Stage cache: reuses drift correction, first detection and (when only later settings differ) first clustering and template matching; bit-identical to full sorts |
 | `cleaning.py` | Multi-unit events, duplicate test, masks (§6.1–6.3) |
 | `waveform.py` | Bombcell noise screen and the stricter near-noise screen (§6.4, §7.1) |
 | `score.py` | S, S_track, C, eligibility (§5, §7.2, §7.5) |
@@ -26,7 +29,7 @@ run them.
 | `extract_segment.py`, `extract_tracking.py`, `make_probe.py` | One-off extraction of the excerpt, tracking and probe |
 | `raw_artefacts.py`, `plot_raw_events.py` | Raw transient diagnostic and safety-net mask (§6.1) |
 | `replicates.py`, `alpha_scan.py`, `self_leak.py`, `perturb.py`, `adjudicate.py`, `reference_heldout.py`, `reference_invariance.py`, `compare_references.py` | Phase 0 checks (§8) |
-| `cluster_diagnostic.py`, `same_sort.py` | Round 1 preparation: clustering diagnostic, exact sort comparison |
+| `cluster_diagnostic.py`, `round2_diagnostic.py`, `same_sort.py` | Round preparation: clustering and merge-tree diagnostics, exact sort comparison |
 | `ring_reference.py` | Superseded HMM reference (kept for the record) |
 
 **Data and results** (`C:\data\ks4_tuning\26648_kobe_2020-08-21\`):
@@ -66,5 +69,7 @@ run them.
 4. The optimising agent reads only `summary.json` and the log's `result` records (§3). Per-unit
    scores are in each sort's `evaluation.json` and are not read during the search.
 
-A run takes about 4.5 minutes of GPU for the sort and under a minute for the harness. 100 runs, of
-which 15 are reserved for replication and ablation (§9).
+A full sort takes about 4.2 minutes of GPU and the harness about a minute (CPU). With the stage cache
+(`config.json` `stage_cache`, under `search/stage_cache`), a sort that shares drift correction and the
+first detection pass with an earlier one takes ~3.7 minutes, and one that differs only in second-pass
+or final-merge settings ~1.1. No fixed run budget (§9).

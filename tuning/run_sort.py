@@ -5,6 +5,9 @@ provenance.json with the
 commit, the working-tree diff hash, the hash of the fused-kernel library (built from
 kilosort/cuda, not tracked by git) and the settings used. Skips KS4's PNG plots and Phy's PC
 features (pc_features.npy, pc_feature_ind.npy), which nothing in the harness reads.
+
+With --cache, stages that the run's settings don't affect are reused from earlier sorts
+(stage_cache.py); the result is the same sort, bit for bit.
 """
 import argparse
 import hashlib
@@ -32,6 +35,7 @@ p.add_argument('--out', required=True, help='results folder (must not exist)')
 p.add_argument('--settings', default='{}', help='JSON dict of setting overrides')
 p.add_argument('--seed', type=int, default=1,
                help='replicate seed: random_seed = seed, cluster_init_seed = seed + 4 (1 gives KS4 defaults)')
+p.add_argument('--cache', help='stage-cache folder (stage_cache.py); without it, a plain KS4 sort')
 args = p.parse_args()
 
 out = Path(args.out)
@@ -43,6 +47,13 @@ git = lambda *a: subprocess.run(['git', '-C', str(REPO), *a], capture_output=Tru
 diff = git('diff', 'HEAD', '--', 'kilosort')
 untracked = git('ls-files', '--others', '--exclude-standard', '--', 'kilosort').split()
 kernels = cuda_kernels.LIBRARY_PATH
+cache = None
+if args.cache:
+    import stage_cache
+    from kilosort.parameters import DEFAULT_SETTINGS
+    key_a, key_b = stage_cache.keys({**DEFAULT_SETTINGS, **settings}, args.data, args.probe,
+                                    extra={'data_dtype': 'int16', 'do_CAR': True, 'invert_sign': False})
+    cache = {'dir': args.cache, 'A': key_a, 'B': key_b, 'stages': stage_cache.install(args.cache, key_a, key_b)}
 t0 = time.time()
 run_kilosort(settings=settings, probe=load_probe(args.probe), filename=args.data,
              results_dir=out, data_dtype='int16', verbose_console=True, make_plots=False,
@@ -56,6 +67,7 @@ run_kilosort(settings=settings, probe=load_probe(args.probe), filename=args.data
     'kernels_used': cuda_kernels._lib is not None,
     'kernels_sha256': hashlib.sha256(kernels.read_bytes()).hexdigest() if kernels.exists() else None,
     'settings': settings,
+    'stage_cache': cache,
     'data': args.data,
     'probe': args.probe,
     'runtime_min': (time.time() - t0) / 60,

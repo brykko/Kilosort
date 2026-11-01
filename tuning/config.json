@@ -11,6 +11,7 @@
   "default_replicates": ["runs/hybrid_default_seed1", "runs/hybrid_default_seed2", "runs/hybrid_default_seed3",
                          "runs/hybrid_default_seed4", "runs/hybrid_default_seed5"],
   "search_runs": "runs/search",
+  "stage_cache": "search/stage_cache",
   "log": "runs/search_log.jsonl",
   "test_log": "runs/test_log.jsonl",
   "frozen": "runs/frozen.json",
