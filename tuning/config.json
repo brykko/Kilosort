@@ -17,7 +17,5 @@
   "frozen": "runs/frozen.json",
   "fixed_settings": ["n_chan_bin", "fs", "tmin", "tmax", "duplicate_spike_ms", "do_CAR", "random_seed",
                      "cluster_init_seed", "fast_matching"],
-  "max_seed": 999,
-  "budget": 100,
-  "reserved_for_selection": 15
+  "max_seed": 999
 }

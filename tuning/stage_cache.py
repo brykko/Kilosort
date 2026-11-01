@@ -11,6 +11,10 @@ sort without `install` (any normal KS4 run) is untouched. Two cached stages:
 
 The second clustering pass, the final merge and saving always run.
 
+When two search jobs run side by side, the GPU-heavy stages (drift correction, the first detection
+pass, template matching) take a lock (`gpu.lock` in the cache folder) while they compute, so the two
+jobs never run them at the same time; it changes timing only.
+
 A stage's outputs are its return values plus the `ops` keys it sets (all stage functions add keys,
 none mutate existing values in place), and the numpy/torch random-number states after it, restored
 on a hit so the rest of the sort sees what it would have seen. Keys hash the KS4 sources and kernel
@@ -26,6 +30,7 @@ import numpy as np
 import torch
 
 from kilosort import clustering_qr, datashift, spikedetect, template_matching
+from locks import exclusive
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -93,7 +98,8 @@ def install(cache_dir, key_a, key_b):
             status[name] = 'hit'
             return c['out']
         before = dict(ops)
-        out = compute()
+        with exclusive(Path(cache_dir) / 'gpu.lock'):
+            out = compute()
         # ops is returned first by drift correction, last by detection and extraction; it is
         # stored as its new keys only, not as part of the outputs
         if name == 'drift':

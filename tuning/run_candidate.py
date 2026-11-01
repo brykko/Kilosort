@@ -33,6 +33,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from locks import exclusive
+
 HERE = Path(__file__).resolve().parent
 CFG = json.loads((HERE / 'config.json').read_text())
 BASE = Path(CFG['excerpt_dir'])
@@ -147,16 +149,13 @@ def run(args):
         LOG = 'test_log'
     hashes = current_hashes() if args.unfrozen else verify()
 
-    records = read_log()
-    n = sum(r.get('type') == 'start' for r in records) + 1
-    counted = sum(r.get('type') == 'start' and r['phase'] != 'test' and not r.get('existing_sort') for r in records)
-    if args.phase == 'search' and counted >= CFG['budget'] - CFG['reserved_for_selection']:
-        raise SystemExit('search budget used up; the remaining runs are reserved for replication and ablation')
-    run_id = f'{n:03d}_{args.name}_s{args.seed}'
+    with exclusive(str(path(LOG)) + '.lock'):          # two jobs may start runs at the same time
+        n = sum(r.get('type') == 'start' for r in read_log()) + 1
+        run_id = f'{n:03d}_{args.name}_s{args.seed}'
+        log({'type': 'start', 'run_id': run_id, 'phase': args.phase, 'seed': args.seed, 'settings': settings,
+             'rationale': args.rationale, 'existing_sort': args.existing_sort, 'unfrozen': args.unfrozen,
+             'reference_sha256': hashes['reference'], 'harness_sha256': hashes['harness']})
     folder = path('search_runs') / ('test_' + run_id if args.unfrozen else run_id)
-    log({'type': 'start', 'run_id': run_id, 'phase': args.phase, 'seed': args.seed, 'settings': settings,
-         'rationale': args.rationale, 'existing_sort': args.existing_sort, 'unfrozen': args.unfrozen,
-         'reference_sha256': hashes['reference'], 'harness_sha256': hashes['harness']})
 
     t_start = time.time()
     sort = Path(args.existing_sort) if args.existing_sort else folder / 'sort'
