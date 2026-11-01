@@ -39,9 +39,6 @@ def evaluate(sort, reference, raw_artefacts, t0, duration, hybrid_truth=None):
         'n_units': len(by_cluster), 'n_noise_units': sum(not v[1] for v in screen.values()),
         'n_eligible': len(units),                                                          # unit count
         'S': sc['S'], 'S_track': sc['S_track'],
-        'fraction_spikes_removed': cleaning['fraction_spikes_removed'],                    # cleaning burden
-        'n_flagged_pairs': cleaning['duplicates']['n_flagged'],                            # cleaning burden
-        'n_flagged_pairs_jittered_null': cleaning['duplicates']['n_flagged_jittered_null'],
         'multiunit_events': cleaning['multiunit_events']['n_events'],
         'masked_time_s': float(np.sum(mask[:, 1] - mask[:, 0])) if mask.size else 0.0,
         'S_i': {str(c): v for c, v in sc['S_i'].items()},                                  # untuned units

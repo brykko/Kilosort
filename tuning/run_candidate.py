@@ -125,7 +125,6 @@ def visible_summary(ev, cmp):
         'guards': [{k: g[k] for k in ('guard', 'candidate', 'default', 'tau', 'status')} for g in cmp['guards']],
         'all_guards_pass': all(g['status'] == 'pass' for g in cmp['guards']),
         'n_units': ev['n_units'], 'n_eligible': ev['n_eligible'], 'n_noise_units': ev['n_noise_units'],
-        'fraction_spikes_removed': ev['fraction_spikes_removed'], 'n_flagged_pairs': ev['n_flagged_pairs'],
         'multiunit_events': ev['multiunit_events'],
         'hybrid': {k: ev['hybrid'][k] for k in ('median_agreement', 'n_recovered', 'n_inserted')}
                   | {'n_merged_pairs': len(ev['hybrid']['merged_pairs'])},

@@ -8,8 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
-QUANTITIES = ['S', 'S_track', 'n_eligible', 'fraction_spikes_removed', 'n_flagged_pairs',
-              'masked_time_s']
+QUANTITIES = ['S', 'S_track', 'n_eligible', 'masked_time_s']
 HYBRID = ['median_agreement', 'n_recovered']
 
 p = argparse.ArgumentParser()

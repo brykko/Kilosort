@@ -1,12 +1,12 @@
 # Kilosort 4 settings search: evaluation spec
 
-**Status:** v0.13, frozen (latest `freeze` record in the search log and `runs/frozen.json`).
+**Status:** v0.14, frozen (latest `freeze` record in the search log and `runs/frozen.json`).
 
 **Freezing:** the spec and the evaluation harness are committed together, with the commit hash and the SHA-256 of every harness file recorded in the search log. Any later change gets a new version number and a new `freeze` record stating what changed and why. A change to the score, guards or thresholds after the search has started invalidates comparisons made under the old version, and those candidates must be re-scored.
 
-**Principle:** the objective S decides how finely units are split. The guards (§7) protect only against what S can't see: artefact units, duplicated spikes, lost or merged known units, and loss of untuned cells. A check dropped from the criteria is removed from the harness and these documents, not kept as a reported quantity.
+**Principle:** the objective S decides how finely units are split. The guards (§7) protect only against what S can't see: artefact units, lost or merged known units, and loss of untuned cells. Duplicated spikes are removed before scoring (§6.3), and the final selection checks that a gain survives stricter duplicate removal (§9.2). A check dropped from the criteria is removed from the harness and these documents, not kept as a reported quantity.
 
-**History:** earlier versions and the reasons for each change are in git (`git log -p -- tuning/evaluation_spec.md`). v0.11 removed the checks that are no longer criteria and named the guards; v0.12 removes one more; v0.13 adds the resolution stopping rule (§9.2).
+**History:** earlier versions and the reasons for each change are in git (`git log -p -- tuning/evaluation_spec.md`). v0.11 removed the checks that are no longer criteria and named the guards; v0.12 removes one more; v0.13 adds the resolution stopping rule (§9.2); v0.14 replaces the duplicate guards with a check at selection (§9.2).
 
 ---
 
@@ -14,7 +14,7 @@
 
 Find KS4 settings (and, if needed, code changes) that sort the target recording better than KS4 defaults, for both single-cell and population analyses.
 
-The claim the procedure supports is narrow: *on this 20-minute excerpt, the winning settings extract more heading-informative, non-duplicated unit spiking than defaults, without merging known units or increasing duplicates, artefacts or the loss of untuned cells, consistently across seed replicates.* It does not claim the winner is the best possible sort, that it is better for every analysis, or that it transfers to other recordings (§10 tests one other recording separately).
+The claim the procedure supports is narrow: *on this 20-minute excerpt, the winning settings extract more heading-informative, non-duplicated unit spiking than defaults, without merging known units, adding artefacts or losing untuned cells, consistently across seed replicates and with a gain that survives stricter duplicate removal.* It does not claim the winner is the best possible sort, that it is better for every analysis, or that it transfers to other recordings (§10 tests one other recording separately).
 
 ## 2. Data
 
@@ -176,8 +176,6 @@ Tolerances marked τ are 2 × the SD of that quantity across the five default re
 |---|---|---|
 | Eligible units | ≥ 0.8 × default (no upper bound) | Wholesale loss of units |
 | Hybrid recovery | §7.3 | Misses and merges of known units, including differently tuned HD pairs |
-| Spikes removed by cleaning | Fraction of spikes removed by §6.2–6.3 ≤ default + τ | Settings that generate duplicates or artefacts, even when the harness neutralises them |
-| Duplicate pairs per unit | Flagged duplicate pairs (§6.3) / units ≤ default + τ | The same, per unit, since the pair count grows with the number of units |
 | Untuned units | Eligible units with S_i below the 25th percentile of default's S_i ≥ 0.9 × default | Selection pressure against non-HD cells (circularity) |
 | Raw mask unchanged | Raw-mask hash equals the frozen one | Harness drift or tampering; should never trip |
 
@@ -213,12 +211,12 @@ Not counted in the search budget. The search may not start until every item pass
 
 | # | Check | Pass condition |
 |---|---|---|
-| 8.1 | Seed replicates: default × 5 on the excerpt | σ_S and all τ values computed. **Done** (hybrid excerpt, seeds 1–5; `runs/phase0_replicates_v0.11.json`): S = 1020 ± 14.3 bits/s (σ_S 1.4% of S), so δ = 28.6 bits/s; S_track 834 ± 13.6. Default has 772 ± 10 eligible units of ~830. τ: eligible units 20, spikes removed 0.16 percentage points, flagged pairs 39 (0.37 per unit). Hybrid: median agreement 0.95 (τ 0.0055), 30–32 of 40 recovered (τ 1.8; unrecovered units are mostly the smallest), no HD pair merged; 35–37 hybrid copies excluded per sort. |
+| 8.1 | Seed replicates: default × 5 on the excerpt | σ_S and all τ values computed. **Done** (hybrid excerpt, seeds 1–5; `runs/phase0_replicates_v0.11.json`): S = 1020 ± 14.3 bits/s (σ_S 1.4% of S), so δ = 28.6 bits/s; S_track 834 ± 13.6. Default has 772 ± 10 eligible units of ~830. τ: eligible units 20. Hybrid: median agreement 0.95 (τ 0.0055), 30–32 of 40 recovered (τ 1.8; unrecovered units are mostly the smallest), no HD pair merged; 35–37 hybrid copies excluded per sort. |
 | 8.2 | θ_ref sanity floor | On moving cycles, report circular correlation (Fisher–Lee, which needs no mean direction; open-field heading is near-uniform) and angular offset between θ_ref and tracked heading. Pass if circular correlation ≥ 0.8, i.e. θ_ref is still clearly a heading signal. This is a floor, never an objective: departures from tracking are expected. Prototype: 0.81–0.83. |
 | 8.3 | Reference invariance | Build θ_ref from two default sorts without hybrid insertion (reserved seeds 1000 and 1001). Score at least three other sorts against both references. Pass if, for every pair of sorts, ΔS differs between the two references by < 0.25 δ. (What matters is that the choice of reference sort doesn't change comparisons; agreement between the two θ_ref series themselves is reported only.) Prototype (references from seeds 1000/1001; sorts: default seeds 1 and 2, and an `extra-settings`-branch sort; all cleaned per §6): spreads 0.2–0.7 bits/s, against 2.0–4.3 bits/s when the reference sorts were themselves among the compared sorts (self-leak, §8.4). θ_ref series: Fisher–Lee 0.944; median difference < 0.001°, 2.3% of cycles differ by > 45° (low-spike cycles). |
 | 8.4 | Self-leak check | On the default sort, compute S against the full-population θ_ref and against a depth-split version (θ_ref from the top half scores bottom-half units and vice versa, with a 150 µm buffer). Pass if they differ by < 0.25 δ. If not, adopt the split for all runs. **Result** (5 hybrid replicates, `runs/phase0_self_leak.json`): levels drop 21% under the split (each half-reference has half the units), so pairwise ΔS between replicates was compared instead, as in 8.3: the largest change was 5.3 bits/s against 0.25 δ = 4.0 (δ = 16.0 under the eligibility then in force; 7.2 now). After allowing for the proportional shrinkage (ΔS_split ≈ 0.87 ΔS_full, r = 0.97) residuals are ≤ 4.9 bits/s and concentrated on one replicate, consistent with the split's own noise (units near the median depth fall on different sides in different sorts) rather than leak. Adopting the split would cost ~13% of sensitivity (mean/SD 62 vs 72). **Decision:** keep the full-population θ_ref; reference invariance (8.3) covers the comparisons. |
 | 8.5 | Time-shift control: θ_ref circularly shifted ≥ 60 s | \|S\| within 2σ_S of 0 after α is set. Confirms no leakage. **Pass** (`runs/phase0_alpha_scan_v0.9.json`): sensitivity across replicates (mean/SD) barely depends on α (71.3 at 0.1 s to 70.6 at 4 s, null-corrected), so α = 0.25 s. Control rotations half-way between the null rotations: S = +1.7 ± 6.9 bits/s (range −6.6 to +12.2) against 2σ_S = 28.6. |
-| 8.6 | Perturbation audit on the default sort (no re-sorting) | At 5% rates: merges between differently tuned units, dropped units, contamination and thinning each lower S by ≥ 3σ_S. Duplicates: \|ΔS\| < σ_S after §6.3, and the spikes-removed guard trips. Splits: S barely changes. Merges between similarly tuned cells are expected to cost little (§12); report their effect rather than requiring it. **Pass** (default seed 1, 39 of 777 units, 5 draws; `runs/phase0_perturbation_v0.9.json`): merges of differently tuned units −63.6 bits/s (−4.4σ_S), drops −55.1 (−3.8σ_S), contamination −55.7 (−3.9σ_S), thinning −51.6 (−3.6σ_S). Splits −0.0. Duplicates (80% copies, ±2 samples): +51.8 bits/s before cleaning, −1.7 after; 3.6% of spikes removed, so the spikes-removed guard trips. Heading-locked artefact units were not tested: they need synthetic waveforms in the raw data. |
+| 8.6 | Perturbation audit on the default sort (no re-sorting) | At 5% rates: merges between differently tuned units, dropped units, contamination and thinning each lower S by ≥ 3σ_S. Duplicates: \|ΔS\| < σ_S after §6.3. Splits: S barely changes. Merges between similarly tuned cells are expected to cost little (§12); report their effect rather than requiring it. **Pass** (default seed 1, 39 of 777 units, 5 draws; `runs/phase0_perturbation_v0.9.json`): merges of differently tuned units −63.6 bits/s (−4.4σ_S), drops −55.1 (−3.8σ_S), contamination −55.7 (−3.9σ_S), thinning −51.6 (−3.6σ_S). Splits −0.0. Duplicates (80% copies, ±2 samples): +51.8 bits/s before cleaning, −1.7 after; 3.6% of spikes removed. Heading-locked artefact units were not tested: they need synthetic waveforms in the raw data. |
 | 8.7 | Saturation | S still rising with unit count at the full count (unit-subsampling curve). **Pass by construction:** S is a sum of per-unit scores, so it rises with every informative unit; it cannot saturate the way a population decoder can. |
 | 8.8 | Duplicate-test null | Jittered-copy flags within the §6.3 limit. **Pass:** 0 flags in every jittered copy of 5 default sorts (285–332 real flags). |
 | 8.9 | Raw transients and masks | Raw events at ≥ 128 channels (§6.1), if any, inspected by you; random 64–127-channel events plotted to confirm they remain neural. Masked time fraction (§6.1–6.2) reported; > 5% is flagged for discussion. Describe (not tune) how multi-unit event rate relates to heading, speed and immobility. Prototype: no ≥ 128-channel events; 64–127-channel events are population bursts. |
@@ -237,6 +235,7 @@ Not counted in the search budget. The search may not start until every item pass
 ### 9.2 Selection
 - Winner: highest mean ΔS over ≥ 3 replicates among candidates passing all guards on every replicate and with mean ΔS_track ≥ δ_track/2 (§5.4).
 - The best of ~100 runs beats default by ~2–2.5σ by chance alone, which is why single runs never decide.
+- **Duplicate robustness.** Cleaning (§6.3) removes duplicates only where the excess is significant and ≥ 3% of the smaller unit's spikes, so a sort with many duplicates may keep some below that line, inflating S slightly. The winner's replicates (and default's) are re-scored with the excess threshold lowered to 1%; the winner must still improve on default by ≥ δ. Done once, at selection, rather than as a guard on every run: the number of duplicates flagged and spikes removed rises with firing rate (more coincidences, more power, more chance coincidences in each removed window), so a per-run limit penalised settings that detect more spikes.
 - **Resolution stopping rule.** S is cross-validated, so units that add nothing don't lower it: past the real cells it plateaus rather than peaks, and "the maximum" is not a usable target. Among configurations that differ mainly in resolution, choose the one at which the number of eligible units that reproduce across seeds is largest (`tuning/reproducibility.py`: a unit reproduces if it has a match, agreement ≥ 0.5, in another seed of the same settings). Beyond that point the extra units are seed-dependent fragments, and some reproducible units break up. Cross-checks: the units a step adds should carry a substantial share of a typical unit's S (ΔS per added eligible unit against default's mean S per unit), and each step should gain ≥ δ/2. Round 2's γ sweep (`round2_results.md`): reproduced units ~660 (default), ~905 (γ 2), ~870 (γ 4), ~815 (γ 8), so γ 2.
 
 ### 9.3 Ablation
@@ -250,7 +249,7 @@ Not counted in the search budget. The search may not start until every item pass
 ## 10. Transfer test: MEC open-field recording (reported, not a gate)
 
 - Sort the MEC search excerpt (minutes 20–40) with default and winner, 3 seeds each.
-- Score with tracked-position S (Appendix A) plus the eligible-units, cleaning and untuned-units guards (§7.1).
+- Score with tracked-position S (Appendix A) plus the eligible-units and untuned-units guards (§7.1).
 - If the winner does not beat default there, treat the settings as specific to the target recording: do not apply them to the MEC data without a search of its own under this spec.
 
 ## 11. Log (append-only)

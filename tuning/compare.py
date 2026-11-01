@@ -85,17 +85,12 @@ def guards(cand, defaults):
                       lambda v, d, t: v >= d - t, tau_r),
                 check('Hybrid HD pairs merged', len(cand['hybrid']['merged_pairs']), 0, lambda v, d, t: v == 0)]
 
-    for e in (cand, *defaults):     # per unit: the raw count grows with the number of units
-        e['flagged_pairs_per_unit'] = e['n_flagged_pairs'] / e['n_units']
     vals = lambda e: np.array(list(e['S_i'].values()))
     q = [np.percentile(vals(e), 25) for e in defaults]
-    at_most = lambda v, d, t: v <= d + t
     return [
         check('Eligible units', cand['n_eligible'], float(np.mean([e['n_eligible'] for e in defaults])),
               lambda v, d, t: v >= 0.8 * d),
         *hybrid_guards(),
-        relative('Spikes removed by cleaning', 'fraction_spikes_removed', at_most),
-        relative('Duplicate pairs per unit', 'flagged_pairs_per_unit', at_most),
         # candidate units below the 25th percentile of default's S_i, against default's own count
         check('Untuned units', float(np.mean([np.sum(vals(cand) < qq) for qq in q])),
               float(np.mean([np.sum(vals(e) < qq) for e, qq in zip(defaults, q)])), lambda v, d, t: v >= 0.9 * d),

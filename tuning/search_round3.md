@@ -11,7 +11,7 @@ asks, on top of the round 2 leader, whether KS4 finds and represents spikes as w
 
 - **Detection:** which spikes are found at all. Lower thresholds find more spikes from small and
   distant cells, which S can reward (more informative spikes) or which can add noise and duplicates
-  (the guards' job).
+  (removed by cleaning before scoring; the winner faces a stricter-cleaning check, spec §9.2).
 - **Features:** what the clustering sees for each spike: how many channels (`nearest_chans`) and how
   many temporal components per channel (`n_pcs`). Richer features could separate cells that the
   current 10 × 6 features can't.
@@ -68,7 +68,7 @@ As in round 2:
 ## 5. End of round 3
 
 Report the leader with its replicates, a table of every configuration (ΔS, ΔS_track, eligible
-units, hybrid recovery, cleaning quantities, guard failures, reproduced units for candidates), and
+units, hybrid recovery, guard failures, reproduced units for candidates), and
 proposals. Then stop for discussion.
 
 Left for later: whitening range, high-pass cutoff, template-size settings for universal templates,

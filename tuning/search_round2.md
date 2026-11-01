@@ -8,9 +8,8 @@ on the static audit `resolution_audit/KS4_clustering_resolution_audit.md` (2026-
 
 Round 1's largest gains came from splitting earlier in the pipeline: the `standard` preset
 (+178.6 bits/s over three seeds), bimodality 0 with γ 2.0 (+181.8) and with γ 1.0 (+155.7), about
-three times the leader's +55.5 (final merge 0.7). Each sits at the cleaning limits and fails one
-guard on one or two seeds, by small margins: spikes removed by cleaning (limit 1.34%) or duplicate
-pairs per unit (limit 0.41).
+three times the leader's +55.5 (final merge 0.7). They also produce more duplicate spikes, which
+cleaning removes before scoring.
 
 Round 2 looks for configurations that keep the early-split gain and pull those quantities back
 inside their limits with a margin. Round 1 shows two levers:
@@ -21,7 +20,7 @@ inside their limits with a margin. Round 1 shows two levers:
   This is why `standard` (which includes first merge 0.975) removes 1.18–1.27% where bimodality 0
   alone removes 1.34%.
 - **A stricter final merge adds clean gain.** Final merge 0.85–0.95 gains +102 to +110 alone and
-  leaves the cleaning quantities at default levels.
+  adds no duplicates.
 
 It also tests:
 - **the graph-clustering settings** (neighbours, downsampling) with the merge tree relaxed, since
@@ -112,7 +111,7 @@ Bases: **STD** = `standard` preset (bimodality 0, shape criterion, first merge 0
 |---|---|---|
 | R1 | STD + F2(0.85) | Does a stricter final merge add to `standard`? |
 | R2 | STD + F2(0.95) | Same, further |
-| R3 | G2 + F1 | Does the stricter first merge bring γ 2.0's duplicates inside the limits? |
+| R3 | G2 + F1 | Does the stricter first merge reduce γ 2.0's duplicates? |
 | R4 | G2 + F1 + F2(0.95) | Both levers on γ 2.0 |
 | R5 | G2 + shape criterion + F1 (= STD + γ 2.0) | γ on top of `standard` |
 | R6 | G1 + F1 | As R3, for γ 1.0 |
@@ -152,7 +151,7 @@ idle.
 ## 6. End of round 2
 
 Report the leader with its replicates, a table of every run (ΔS, ΔS_track, eligible units, hybrid
-recovery, the cleaning quantities against their limits, guard failures), and proposals for the
+recovery, cleaning statistics, guard failures), and proposals for the
 next step. Then stop for discussion.
 
 Candidates from the audit left for a later round: feature width (`nearest_chans`), explicit

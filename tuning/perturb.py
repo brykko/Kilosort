@@ -9,7 +9,7 @@ Each perturbation is applied at a 5% rate to the cleaned sort (hybrid copies rem
 - thin: every eligible unit loses 5% of its spikes;
 - split: 5% of eligible units split in two at random (S should barely change);
 - duplicate: 5% of eligible units copied (80% of spikes, +-2 samples jitter), then the §6.3 duplicate
-  test is run on the result (S should change by < sigma_S; the cleaning-burden guard should trip).
+  test is run on the result (S should change by < sigma_S after cleaning).
 Pass (spec): merge, drop, contaminate and thin each lower S by >= 3 sigma_S.
 """
 import argparse
