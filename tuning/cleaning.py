@@ -237,8 +237,10 @@ def masked_fraction(bounds, intervals):
     return np.diff(F(bounds)) / np.diff(bounds)
 
 
-def load_clean_units(sort, raw_artefacts):
-    """Spike times (s) per cluster after §6.1-6.3, median depth per cluster, and masked intervals (s)."""
+def load_clean_units(sort, raw_artefacts, values=None):
+    """Spike times (s) per cluster after §6.1-6.3, median depth per cluster, and masked intervals (s).
+    With values (an array with one entry per spike of the sort, e.g. amplitudes), also those values
+    per cluster, for the same kept spikes."""
     sort = Path(sort)
     st = np.load(sort / 'spike_times.npy').ravel()
     clu = np.load(sort / 'spike_clusters.npy').ravel()
@@ -254,6 +256,9 @@ def load_clean_units(sort, raw_artefacts):
     depth = {int(k): float(np.median(y[clu == k])) for k in ids}
     keep = ~removed
     t, clu = t[keep], clu[keep]
+    if values is not None:
+        v = np.asarray(values).ravel()[keep]
+        return {int(k): t[clu == k] for k in ids}, depth, iv, {int(k): v[clu == k] for k in ids}
     return {int(k): t[clu == k] for k in ids}, depth, iv
 
 

@@ -30,6 +30,7 @@ run them.
 | `raw_artefacts.py`, `plot_raw_events.py` | Raw transient diagnostic and safety-net mask (§6.1) |
 | `replicates.py`, `alpha_scan.py`, `self_leak.py`, `perturb.py`, `adjudicate.py`, `reference_heldout.py`, `reference_invariance.py`, `compare_references.py` | Phase 0 checks (§8) |
 | `cluster_diagnostic.py`, `round2_diagnostic.py`, `same_sort.py` | Round preparation: clustering and merge-tree diagnostics, exact sort comparison |
+| `oversplit.py` | S's response to splitting a sort's units past its real cells (random, amplitude, time splits) |
 | `ring_reference.py` | Superseded HMM reference (kept for the record) |
 
 **Data and results** (`C:\data\ks4_tuning\26648_kobe_2020-08-21\`):
