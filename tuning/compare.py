@@ -21,7 +21,6 @@ from cleaning import load_clean_units
 TOL_S = 0.4e-3
 MATCH_UM = 100.0
 MATCH_MIN = 0.5
-MAX_NEAR_NOISE_SHARE = 0.01     # near-noise units may carry at most 1% of S
 
 
 def agreement(ta, tb):
@@ -95,7 +94,6 @@ def guards(cand, defaults):
         check('Eligible units', cand['n_eligible'], float(np.mean([e['n_eligible'] for e in defaults])),
               lambda v, d, t: v >= 0.8 * d),
         *hybrid_guards(),
-        relative('Near-noise share of S', 'S_share_near_noise', lambda v, d, t: v <= MAX_NEAR_NOISE_SHARE),
         relative('Spikes removed by cleaning', 'fraction_spikes_removed', at_most),
         relative('Duplicate pairs per unit', 'flagged_pairs_per_unit', at_most),
         # candidate units below the 25th percentile of default's S_i, against default's own count

@@ -19,7 +19,7 @@ run them.
 | `run_sort.py` | One KS4 sort from this checkout, with `provenance.json`; `--cache` reuses unaffected stages |
 | `stage_cache.py` | Stage cache: reuses drift correction, first detection and (when only later settings differ) first clustering and template matching; bit-identical to full sorts |
 | `cleaning.py` | Multi-unit events, duplicate test, masks (§6.1–6.3) |
-| `waveform.py` | Bombcell noise screen and the stricter near-noise screen (§6.4, §7.1) |
+| `waveform.py` | Bombcell noise screen (§6.4) |
 | `score.py` | S, S_track, C, eligibility (§5, §7.2, §7.5) |
 | `evaluate.py` | Per-sort evaluation (`evaluation.json`) |
 | `compare.py` | Guards against default replicates, matched units (§7) |

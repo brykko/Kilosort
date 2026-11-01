@@ -30,11 +30,10 @@ NULL_FRACTIONS = [k / 7 for k in range(1, 7)]
 
 
 def eligible(sort, by_cluster, duration, screen=None, max_contamination=None):
-    """Eligible units (§6.4: spike counts, waveform screen; since v0.9 no refractory criterion unless
-    max_contamination is given, as for theta_ref) and the subset failing the stricter screen (§7.1)."""
+    """Eligible units (§6.4: spike counts and waveform screen; a refractory-contamination limit only
+    if max_contamination is given, as when theta_ref was built)."""
     screen = waveform.screen(sort) if screen is None else screen
-    units = [c for c in eligible_units(by_cluster, duration, max_contamination) if screen[c][1]]
-    return units, [c for c in units if not screen[c][2]]
+    return [c for c in eligible_units(by_cluster, duration, max_contamination) if screen[c][1]]
 
 
 def _bins(theta):

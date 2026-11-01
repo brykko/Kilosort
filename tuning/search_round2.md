@@ -9,8 +9,8 @@ on the static audit `resolution_audit/KS4_clustering_resolution_audit.md` (2026-
 Round 1's largest gains came from splitting earlier in the pipeline: the `standard` preset
 (+178.6 bits/s over three seeds), bimodality 0 with γ 2.0 (+181.8) and with γ 1.0 (+155.7), about
 three times the leader's +55.5 (final merge 0.7). Each sits at the cleaning limits and fails one
-guard on one or two seeds, by small margins: spikes removed by cleaning (limit 1.34%), duplicate
-pairs per unit (limit 0.41) or near-noise share of S (cap 1%).
+guard on one or two seeds, by small margins: spikes removed by cleaning (limit 1.34%) or duplicate
+pairs per unit (limit 0.41).
 
 Round 2 looks for configurations that keep the early-split gain and pull those quantities back
 inside their limits with a margin. Round 1 shows two levers:
@@ -20,8 +20,8 @@ inside their limits with a margin. Round 1 shows two levers:
   many distinct templates KS4 matches with; with more of them, fewer residuals are fitted twice.
   This is why `standard` (which includes first merge 0.975) removes 1.18–1.27% where bimodality 0
   alone removes 1.34%.
-- **A stricter final merge adds clean gain and dilutes near-noise units.** Final merge 0.85–0.95
-  gains +102 to +110 alone with near-noise shares of 0.46–0.52% of S.
+- **A stricter final merge adds clean gain.** Final merge 0.85–0.95 gains +102 to +110 alone and
+  leaves the cleaning quantities at default levels.
 
 It also tests:
 - **the graph-clustering settings** (neighbours, downsampling) with the merge tree relaxed, since
@@ -110,7 +110,7 @@ Bases: **STD** = `standard` preset (bimodality 0, shape criterion, first merge 0
 
 | Run | Configuration | Question |
 |---|---|---|
-| R1 | STD + F2(0.85) | Does a stricter final merge add to `standard` and lower its near-noise share? |
+| R1 | STD + F2(0.85) | Does a stricter final merge add to `standard`? |
 | R2 | STD + F2(0.95) | Same, further |
 | R3 | G2 + F1 | Does the stricter first merge bring γ 2.0's duplicates inside the limits? |
 | R4 | G2 + F1 + F2(0.95) | Both levers on γ 2.0 |

@@ -60,7 +60,7 @@ for name, folder in (a.split('=', 1) for a in args.sorts):
     if args.hybrid_truth:
         copies = set(hybrid.recovery(folder, np.load(args.hybrid_truth))['hybrid_copies'])
         by_cluster = {c: t for c, t in by_cluster.items() if c not in copies}
-    units = score.eligible(folder, by_cluster, args.duration)[0]
+    units = score.eligible(folder, by_cluster, args.duration)
     frac = masked_fraction(bounds, mask)
     dur = np.diff(bounds) * (1 - frac)
     valid = usable & (frac <= 0.5)

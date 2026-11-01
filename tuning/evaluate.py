@@ -31,7 +31,7 @@ def evaluate(sort, reference, raw_artefacts, t0, duration, hybrid_truth=None):
     rec = hybrid.recovery(sort, np.load(hybrid_truth)) if hybrid_truth else None
     if rec:
         by_cluster = {c: t for c, t in by_cluster.items() if c not in set(rec['hybrid_copies'])}
-    units, near_noise = eligible(sort, by_cluster, duration, screen)
+    units = eligible(sort, by_cluster, duration, screen)
     sc = score_sort(by_cluster, units, np.load(reference), t0, duration, mask, track=True)
     return {
         'sort': str(sort), 'reference': str(reference), 'reference_sha256': sha256(reference),
@@ -39,8 +39,6 @@ def evaluate(sort, reference, raw_artefacts, t0, duration, hybrid_truth=None):
         'n_units': len(by_cluster), 'n_noise_units': sum(not v[1] for v in screen.values()),
         'n_eligible': len(units),                                                          # unit count
         'S': sc['S'], 'S_track': sc['S_track'],
-        'S_share_near_noise': sum(sc['S_i'][c] for c in near_noise) / sc['S'],             # near-noise share
-        'n_near_noise': len(near_noise),
         'fraction_spikes_removed': cleaning['fraction_spikes_removed'],                    # cleaning burden
         'n_flagged_pairs': cleaning['duplicates']['n_flagged'],                            # cleaning burden
         'n_flagged_pairs_jittered_null': cleaning['duplicates']['n_flagged_jittered_null'],

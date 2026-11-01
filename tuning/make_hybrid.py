@@ -98,7 +98,7 @@ if out.exists():
 # ---------------- source units ----------------
 by_cluster, depth, mask = load_clean_units(sort, args.raw_artefacts)
 screen = waveform.screen(sort)
-units = eligible(sort, by_cluster, args.duration, screen, max_contamination=0.10)[0]   # v0.6 criteria
+units = eligible(sort, by_cluster, args.duration, screen, max_contamination=0.10)   # v0.6 criteria
 flagged = {u for pr in json.loads((sort / 'cleaning.json').read_text())['flagged_pairs'] for u in (pr['a'], pr['b'])}
 split = {u for pr in _same_cell_pairs(sort, by_cluster, units, screen) for u in (pr['a'], pr['b'])}
 

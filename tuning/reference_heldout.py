@@ -42,7 +42,7 @@ source = [int(c) for c, lab in zip(acg['cluster'], acg['raw_acg_label']) if lab 
 bounds, dur, moving, hd = theta_cycles(by_cluster, source, np.load(args.tracking), args.t0, args.duration)
 frac = masked_fraction(bounds, mask)
 moving, dur = moving & (frac <= 0.5), dur * (1 - frac)
-eligible = np.array(eligible_units_of(args.sort, by_cluster, args.duration)[0])
+eligible = np.array(eligible_units_of(args.sort, by_cluster, args.duration))
 counts = cycle_counts(by_cluster, eligible, bounds)
 group = np.array([int(depth[c] // BLOCK_UM) % 2 for c in eligible])
 half = ((bounds[:-1] + bounds[1:]) / 2) >= args.duration / 2
