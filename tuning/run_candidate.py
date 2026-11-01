@@ -119,12 +119,10 @@ def visible_summary(ev, cmp):
     """What the optimising agent may see (§3)."""
     return {
         'S': ev['S'], 'dS': cmp['dS'], 'S_default': cmp['S_default'], 'S_track': ev['S_track'],
-        'dS_track': ev['S_track'] - next(g['default'] for g in cmp['guards'] if g['guard'].startswith('G2')),
-        'C': ev['C'],
+        'dS_track': cmp['dS_track'],
         'guards': [{k: g[k] for k in ('guard', 'candidate', 'default', 'tau', 'status')} for g in cmp['guards']],
-        'all_guards_pass': all(g['status'] in ('pass', 'report') for g in cmp['guards']),
+        'all_guards_pass': all(g['status'] == 'pass' for g in cmp['guards']),
         'n_units': ev['n_units'], 'n_eligible': ev['n_eligible'], 'n_noise_units': ev['n_noise_units'],
-        'n_eligible_contaminated': ev.get('n_eligible_contaminated'),
         'fraction_spikes_removed': ev['fraction_spikes_removed'], 'n_flagged_pairs': ev['n_flagged_pairs'],
         'multiunit_events': ev['multiunit_events'],
         'hybrid': {k: ev['hybrid'][k] for k in ('median_agreement', 'n_recovered', 'n_inserted')}

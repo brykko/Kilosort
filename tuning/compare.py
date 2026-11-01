@@ -1,7 +1,6 @@
-"""Compare a candidate sort with default (spec §7): guards G1, G2 and G4-G8 from evaluation.json
-files, suspected splits (§7.3, reported only since v0.9), calibration C (reported only since v0.10),
-and the matched-unit report (§7.6). G4
-applies when the sorts were evaluated with hybrid truth.
+"""Compare a candidate sort with default (spec §7): the guards of §7.1 from evaluation.json files,
+S_track against default's (for the improvement rule, §5.4), and the matched-unit report (§7.6). The
+hybrid-recovery guards apply when the sorts were evaluated with hybrid truth.
 
 Default is one or more replicate sorts (each with evaluation.json). Each guard's quantity is
 compared with the replicate mean; tolerances tau are 2 x the SD across replicates (§7), so with a
@@ -22,7 +21,7 @@ from cleaning import load_clean_units
 TOL_S = 0.4e-3
 MATCH_UM = 100.0
 MATCH_MIN = 0.5
-G5_MAX_SHARE = 0.01     # spec v0.9: near-noise units may carry at most 1% of S
+MAX_NEAR_NOISE_SHARE = 0.01     # near-noise units may carry at most 1% of S
 
 
 def agreement(ta, tb):
@@ -64,10 +63,8 @@ def matched_report(cand, default, matches):
 
 def guards(cand, defaults):
     def check(name, value, default_value, ok, tau=False):
-        """ok(value, default, tau); tau=False for guards without a tolerance, None if it's unknown;
-        ok=None for a quantity that is reported, not a guard."""
-        status = ('report' if ok is None else 'no tau' if tau is None
-                  else 'pass' if ok(value, default_value, tau) else 'FAIL')
+        """ok(value, default, tau); tau=False for guards without a tolerance, None if it's unknown."""
+        status = 'no tau' if tau is None else ('pass' if ok(value, default_value, tau) else 'FAIL')
         return {'guard': name, 'candidate': value, 'default': default_value,
                 'tau': tau if tau is not False else None, 'status': status}
 
@@ -83,33 +80,29 @@ def guards(cand, defaults):
         tau = float(2 * m.std(ddof=1)) if m.size > 1 else None
         r = np.array([e['hybrid']['n_recovered'] for e in defaults], float)
         tau_r = float(2 * r.std(ddof=1)) if r.size > 1 else None
-        return [check('G4 hybrid median agreement', cand['hybrid']['median_agreement'], float(m.mean()),
+        return [check('Hybrid median agreement', cand['hybrid']['median_agreement'], float(m.mean()),
                       lambda v, d, t: v >= d - t, tau),
-                check('G4 hybrid units recovered', cand['hybrid']['n_recovered'], float(r.mean()),
+                check('Hybrid units recovered', cand['hybrid']['n_recovered'], float(r.mean()),
                       lambda v, d, t: v >= d - t, tau_r),
-                check('G4 hybrid HD pairs merged', len(cand['hybrid']['merged_pairs']), 0, lambda v, d, t: v == 0)]
+                check('Hybrid HD pairs merged', len(cand['hybrid']['merged_pairs']), 0, lambda v, d, t: v == 0)]
 
-    for e in (cand, *defaults):     # spec v0.10: flagged pairs per unit, since the raw count grows with units
+    for e in (cand, *defaults):     # per unit: the raw count grows with the number of units
         e['flagged_pairs_per_unit'] = e['n_flagged_pairs'] / e['n_units']
     vals = lambda e: np.array(list(e['S_i'].values()))
     q = [np.percentile(vals(e), 25) for e in defaults]
     at_most = lambda v, d, t: v <= d + t
     return [
-        check('G1 eligible units', cand['n_eligible'], float(np.mean([e['n_eligible'] for e in defaults])),
+        check('Eligible units', cand['n_eligible'], float(np.mean([e['n_eligible'] for e in defaults])),
               lambda v, d, t: v >= 0.8 * d),
-        relative('G2 S_track (backstop)', 'S_track', lambda v, d, t: v >= d - 5 * t),
-        relative('(G3) suspected splits, reported', 'n_suspected_splits', None),
         *hybrid_guards(),
-        relative('G5 near-noise share of S', 'S_share_near_noise', lambda v, d, t: v <= G5_MAX_SHARE),
-        relative('G6 spikes removed by cleaning', 'fraction_spikes_removed', at_most),
-        relative('G6 flagged duplicate pairs per unit', 'flagged_pairs_per_unit', at_most),
-        relative('G6 flagged duplicate pairs, reported', 'n_flagged_pairs', None),
-        # G7: candidate units below the 25th percentile of default's S_i, against default's own count
-        check('G7 untuned units', float(np.mean([np.sum(vals(cand) < qq) for qq in q])),
+        relative('Near-noise share of S', 'S_share_near_noise', lambda v, d, t: v <= MAX_NEAR_NOISE_SHARE),
+        relative('Spikes removed by cleaning', 'fraction_spikes_removed', at_most),
+        relative('Duplicate pairs per unit', 'flagged_pairs_per_unit', at_most),
+        # candidate units below the 25th percentile of default's S_i, against default's own count
+        check('Untuned units', float(np.mean([np.sum(vals(cand) < qq) for qq in q])),
               float(np.mean([np.sum(vals(e) < qq) for e, qq in zip(defaults, q)])), lambda v, d, t: v >= 0.9 * d),
-        check('G8 raw mask hash', cand['raw_artefacts_sha256'], defaults[0]['raw_artefacts_sha256'],
+        check('Raw mask unchanged', cand['raw_artefacts_sha256'], defaults[0]['raw_artefacts_sha256'],
               lambda v, d, t: v == d),
-        relative('(G9) calibration C, reported', 'C', None),     # spec v0.10: favours fewer units
     ]
 
 
@@ -127,10 +120,13 @@ if __name__ == '__main__':
     g = guards(cand, defaults)
     rep = matched_report(cand, defaults[0], match_units(cand, defaults[0], args.raw_artefacts))
     S_def = float(np.mean([e['S'] for e in defaults]))
+    T_def = float(np.mean([e['S_track'] for e in defaults]))
     result = {'candidate': args.candidate, 'default': args.default, 'S': cand['S'], 'S_default': S_def,
-              'dS': cand['S'] - S_def, 'guards': g, 'matched_units': rep}
+              'dS': cand['S'] - S_def, 'S_track': cand['S_track'], 'S_track_default': T_def,
+              'dS_track': cand['S_track'] - T_def, 'guards': g, 'matched_units': rep}
     Path(args.out or Path(args.candidate) / 'comparison.json').write_text(json.dumps(result, indent=2))
-    print(f"S {cand['S']:.1f} vs default {S_def:.1f} (dS {cand['S'] - S_def:+.1f} bits/s)")
+    print(f"S {cand['S']:.1f} vs default {S_def:.1f} (dS {cand['S'] - S_def:+.1f} bits/s); "
+          f"S_track {cand['S_track']:.1f} vs {T_def:.1f} (dS_track {cand['S_track'] - T_def:+.1f})")
     for x in g:
         val = x['candidate'] if isinstance(x['candidate'], str) else f"{x['candidate']:.4g}"
         dv = x['default'] if isinstance(x['default'], str) else f"{x['default']:.4g}"

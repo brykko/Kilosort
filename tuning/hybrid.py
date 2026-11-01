@@ -1,4 +1,4 @@
-"""Hybrid recovery (spec §7.4, guard G4) of a sort of the hybrid excerpt.
+"""Hybrid recovery (spec §7.4, the hybrid-recovery guards) of a sort of the hybrid excerpt.
 
 Uses the sorter's own output (before the harness's cleaning), so it measures the sort. For each
 inserted unit and each sorted unit, a hit is an inserted spike with a sorted spike within +-0.4 ms;

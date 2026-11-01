@@ -7,10 +7,9 @@ Each perturbation is applied at a 5% rate to the cleaned sort (hybrid copies rem
 - drop: 5% of eligible units removed;
 - contaminate: every eligible unit gains 5% extra spikes drawn from other units;
 - thin: every eligible unit loses 5% of its spikes;
-- split: 5% of eligible units split in two at random (G3 should trip: counted with the §7.3
-  cross-correlogram rule; the halves share a template, so distance and similarity pass);
+- split: 5% of eligible units split in two at random (S should barely change);
 - duplicate: 5% of eligible units copied (80% of spikes, +-2 samples jitter), then the §6.3 duplicate
-  test is run on the result (S should change by < sigma_S; G6 should trip).
+  test is run on the result (S should change by < sigma_S; the cleaning-burden guard should trip).
 Pass (spec): merge, drop, contaminate and thin each lower S by >= 3 sigma_S.
 """
 import argparse
@@ -24,7 +23,6 @@ import hybrid
 import score
 import waveform
 from cleaning import load_clean_units, masked_fraction
-from evaluate import CENTRE_S, FLANK_S, SPLIT_RATIO, _count
 from theta_reference import CENTRES, cycle_counts, eligible_units, tuning
 
 RATE = 0.05
@@ -103,18 +101,14 @@ def thin(by):
 
 def split(by):
     by, passes = dict(by), dict(passes0)
-    new_id, n_split = max(by) + 1, 0
+    new_id = max(by) + 1
     for a in rng.choice(units0, n_pert, replace=False):
         t = by[a]
         side = rng.random(t.size) < 0.5
         by[a], by[new_id] = t[side], t[~side]
         passes[new_id] = passes0[a]
-        ta, tb = np.sort(by[a]), np.sort(by[new_id])
-        centre = _count(ta, tb, -CENTRE_S, CENTRE_S) / (2 * CENTRE_S)
-        flank = (_count(ta, tb, *FLANK_S) + _count(ta, tb, -FLANK_S[1], -FLANK_S[0])) / (2 * (FLANK_S[1] - FLANK_S[0]))
-        n_split += flank > 0 and centre < SPLIT_RATIO * flank
         new_id += 1
-    return by, passes, n_split
+    return by, passes
 
 
 results = {'baseline_S': S0, 'n_eligible': len(units0), 'n_perturbed': n_pert, 'sigma_S': args.sigma_s}
@@ -125,10 +119,10 @@ for name, fn in (('merge', merge), ('drop', drop), ('contaminate', contaminate),
     print(f"{name:12s} dS {np.mean(dS):+7.1f} bits/s ({np.mean(dS) / args.sigma_s:+5.1f} sigma_S) "
           f"{'pass' if results[name]['pass'] else 'FAIL'}   draws: " + ' '.join(f'{x:+.1f}' for x in dS))
 
-by_s, passes_s, n_split = split(by0)
+by_s, passes_s = split(by0)
 dS = S_of(by_s, passes_s)[0] - S0
-results['split'] = {'dS': dS, 'suspected_splits_added': int(n_split), 'of': n_pert}
-print(f'split        dS {dS:+7.1f} bits/s; {n_split} of {n_pert} split pairs meet the G3 cross-correlogram rule')
+results['split'] = {'dS': dS, 'of': n_pert}
+print(f'split        dS {dS:+7.1f} bits/s')
 
 # duplicates: copy units, then run the duplicate test on the result
 t_, u_, ids, xy = cleaning.load_sort(args.sort)

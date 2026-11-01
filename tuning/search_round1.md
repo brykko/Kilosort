@@ -1,6 +1,6 @@
 # Search round 1: clustering resolution
 
-Plan for round 1, frozen with spec v0.7 (leader rule amended in v0.8). Builds on [evaluation_spec.md](evaluation_spec.md), whose
+Plan for round 1 (completed; results in `round1_results.md`, judged under the current spec). Builds on [evaluation_spec.md](evaluation_spec.md), whose
 score, guards, information barrier and budget rules all apply unchanged except where this document
 says otherwise. §2 records the preparation and its results; the levels in §3 were set from them
 before any run was scored.
@@ -8,12 +8,9 @@ before any run was scored.
 ## 1. Aim
 
 Out-of-the-box KS4 tends to under-separate MEC units. Round 1 asks which clustering and merging
-settings raise resolution, i.e. separate units that default merges, without over-splitting. The
-expected signature of a real gain is S rising (separating differently tuned cells is worth
-−5.6σ_S when undone, §8.6) while G3 (suspected splits) and G4 (hybrid recovery, HD pairs merged)
-stay within bounds. More units is the expected outcome, not a warning sign: G1 only guards against
-losing units (spec v0.7). Over-splitting barely moves S (§8.6: −2.1 bits/s for 5% splits), so
-G3 is expected to be the binding guard, not S.
+settings raise resolution, i.e. separate units that default merges. The expected signature of a
+real gain is S rising (separating differently tuned cells is worth about 4σ_S when undone, §8.6)
+while hybrid recovery holds. More units is the expected outcome, not a warning sign.
 
 Out of scope for round 1: detection thresholds, drift correction, template settings, KS4 code
 changes beyond those in §2. These are candidates for round 2, to be discussed after round 1.
@@ -145,8 +142,7 @@ every guard, one further step in the same direction is run. At most 4 such runs.
 - **Leader:** the best configuration replicated on 3 seeds (seed 1 plus 2 and 3), starting with
   default. A configuration becomes leader if its 3-seed mean ΔS exceeds the current leader's by
   ≥ δ/2, it passes every guard on every replicate, its mean ΔS over default is ≥ δ, and its mean
-  ΔS_track over default is ≥ δ_track/2 (§5.4; added in spec v0.8, after run 023: 7.7 bits/s; 13.6
-  under v0.9). Since spec v0.9, δ = 28.6 and the round is re-judged on re-scored runs (`round1_results.md`).
+  ΔS_track over default is ≥ δ_track/2 (§5.4).
 - **Replication trigger:** a single run is replicated when its ΔS exceeds the leader's mean by
   ≥ δ/2 and it passes every guard. This applies §9.1 to round 1: single runs never become leader.
 - **Carried forward:** each setting's best screen level, if it gained ≥ δ/2 over default and
@@ -172,10 +168,9 @@ every guard, one further step in the same direction is run. At most 4 such runs.
 
 Report to you, then stop for discussion before round 2:
 
-- a table of every run: settings, ΔS, S_track, eligible units, suspected splits, hybrid recovery
-  and merged pairs, guard failures;
+- a table of every run: settings, ΔS, ΔS_track, eligible units, hybrid recovery and merged pairs,
+  guard failures;
 - the leader, with its replicates;
-- which settings moved unit counts without moving S (over-splitting caught by G3, or not);
 - proposals for round 2.
 
 Selection (§9.2) and ablation (§9.3) happen only after the last round.
@@ -183,5 +178,3 @@ Selection (§9.2) and ablation (§9.3) happen only after the last round.
 ## 7. Points for you
 
 - **Budget split:** 44 runs for round 1, 41 for later rounds.
-
-Settled: G1's upper bound (1.25 × default) is dropped (spec v0.7), since more units is the aim.

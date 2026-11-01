@@ -16,11 +16,11 @@ run them.
 | `run_candidate.py` | Wrapper: `freeze`, and `run` (sort → clean → evaluate → compare → log) |
 | `run_sort.py` | One KS4 sort from this checkout, with `provenance.json` |
 | `cleaning.py` | Multi-unit events, duplicate test, masks (§6.1–6.3) |
-| `waveform.py` | Bombcell noise screen and the stricter G5 screen (§6.4) |
+| `waveform.py` | Bombcell noise screen and the stricter near-noise screen (§6.4, §7.1) |
 | `score.py` | S, S_track, C, eligibility (§5, §7.2, §7.5) |
 | `evaluate.py` | Per-sort evaluation (`evaluation.json`) |
 | `compare.py` | Guards against default replicates, matched units (§7) |
-| `hybrid.py`, `make_hybrid.py` | Hybrid ground truth: scoring (G4) and construction (§7.4) |
+| `hybrid.py`, `make_hybrid.py` | Hybrid ground truth: scoring and construction (§7.3) |
 | `theta_reference.py`, `build_reference.py` | Theta cycles and the frozen reference heading θ_ref (§5.1) |
 | `acg_class.py` | Theta-source units (elv environment) |
 | `extract_segment.py`, `extract_tracking.py`, `make_probe.py` | One-off extraction of the excerpt, tracking and probe |

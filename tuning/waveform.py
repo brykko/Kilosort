@@ -1,4 +1,4 @@
-"""Waveform screen for eligibility (spec §6.4) and its stricter version for G5 (§7.1).
+"""Waveform screen for eligibility (spec §6.4) and its stricter version for the near-noise guard (§7.1).
 
 Metrics are computed per unit from KS4's templates (templates.npy, un-whitened with
 whitening_mat_inv.npy), following Bombcell's noise rules (default parameters of py_bombcell; KS4
@@ -17,7 +17,7 @@ MUA) are not used:
   channel's.
 
 A unit passes the screen if it is not Bombcell noise and its footprint is <= 300 um. The stricter
-screen tightens every threshold (STRICT) and is used only for G5.
+screen tightens every threshold (STRICT) and is used only for the near-noise guard.
 """
 from pathlib import Path
 
@@ -35,7 +35,7 @@ N_DECAY = 10
 
 DEFAULT = dict(max_peaks=2, max_troughs=1, min_dur_us=100, max_dur_us=1150, max_baseline=0.3,
                max_scnd_peak=0.8, min_decay=0.01, max_decay=0.1, footprint_um=300.0)
-# a margin inside each noise threshold, so G5 counts units close to failing (not the minimum
+# a margin inside each noise threshold, so the near-noise guard counts units close to failing (not the minimum
 # duration: durations come in whole samples, and 4 samples is an ordinary narrow spike)
 STRICT = dict(DEFAULT, max_dur_us=1100, max_baseline=0.25, max_scnd_peak=0.7,
               min_decay=0.0125, max_decay=0.09, footprint_um=250.0)

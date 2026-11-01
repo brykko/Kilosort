@@ -2,7 +2,7 @@
 the excerpt.
 
 - Sources: well-isolated reference-sort units (eligible under §6.4, refractory contamination <= 5%,
-  in no flagged duplicate pair or suspected split pair, >= 600 spikes after cleaning). 5 pairs of HD
+  in no flagged duplicate pair or likely same-cell pair, >= 600 spikes after cleaning). 5 pairs of HD
   cells (mean vector length of the tracked-heading tuning >= 0.25, preferred directions >= 90° apart)
   and 30 single units, one from each amplitude quantile of the remaining isolated units.
 - Waveforms: mean of 300 spikes on all channels after KS4-style referencing (channel mean, then
@@ -33,11 +33,40 @@ from scipy.signal.windows import tukey
 
 import waveform
 from cleaning import load_clean_units
-from evaluate import suspected_splits
 from score import eligible
 from theta_reference import CENTRES, cycle_counts, tuning
 
 FS = 30000
+
+PAIR_DIST_UM = 50.0
+PAIR_SIMILARITY = 0.8
+PAIR_RATIO = 0.25
+CENTRE_S = 1.5e-3
+FLANK_S = (2e-3, 10e-3)
+
+
+def _count(ta, tb, lo, hi):
+    """Number of (a, b) spike pairs with lo <= t_b - t_a <= hi."""
+    return int(np.sum(np.searchsorted(tb, ta + hi, 'right') - np.searchsorted(tb, ta + lo, 'left')))
+
+
+def _same_cell_pairs(sort, by_cluster, units, screen):
+    """Source selection only: pairs with peak channels <= 50 um apart, template similarity >= 0.8 and a
+    cross-correlogram rate within +-1.5 ms below 0.25 x the rate at 2-10 ms."""
+    pos = np.load(Path(sort) / 'channel_positions.npy')
+    sim = np.load(Path(sort) / 'similar_templates.npy')
+    xy = {c: pos[screen[c][0]['peak_channel']] for c in units}
+    pairs = []
+    for i, a in enumerate(units):
+        for b in units[i + 1:]:
+            if np.linalg.norm(xy[a] - xy[b]) > PAIR_DIST_UM or sim[a, b] < PAIR_SIMILARITY:
+                continue
+            ta, tb = np.sort(by_cluster[a]), np.sort(by_cluster[b])
+            centre = _count(ta, tb, -CENTRE_S, CENTRE_S) / (2 * CENTRE_S)
+            flank = (_count(ta, tb, *FLANK_S) + _count(ta, tb, -FLANK_S[1], -FLANK_S[0])) / (2 * (FLANK_S[1] - FLANK_S[0]))
+            if flank > 0 and centre < PAIR_RATIO * flank:
+                pairs.append({'a': a, 'b': b, 'similarity': float(sim[a, b]), 'ratio': centre / flank})
+    return pairs
 PRE, POST = 30, 60
 SNIP_PAD = 300
 N_WF_SPIKES = 300
@@ -71,7 +100,7 @@ by_cluster, depth, mask = load_clean_units(sort, args.raw_artefacts)
 screen = waveform.screen(sort)
 units = eligible(sort, by_cluster, args.duration, screen, max_contamination=0.10)[0]   # v0.6 criteria
 flagged = {u for pr in json.loads((sort / 'cleaning.json').read_text())['flagged_pairs'] for u in (pr['a'], pr['b'])}
-split = {u for pr in suspected_splits(sort, by_cluster, units, screen) for u in (pr['a'], pr['b'])}
+split = {u for pr in _same_cell_pairs(sort, by_cluster, units, screen) for u in (pr['a'], pr['b'])}
 
 
 def contamination(t):

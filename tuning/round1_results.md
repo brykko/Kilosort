@@ -1,100 +1,69 @@
 # Search round 1 results: clustering resolution
 
-Plan: [search_round1.md](search_round1.md). Spec v0.7 for runs 001–023, v0.8 (tracked-heading
-condition) from run 024. ΔS against the mean of the five default replicates (S 576.2 bits/s;
-δ = 16.0); ΔS_track against their S_track (483.9; δ_track/2 = 7.7). Default: 364.6 eligible
-units, 2.8 suspected splits (G3 limit 4.99), 31.4 of 40 hybrid units recovered.
+Plan: [search_round1.md](search_round1.md). Judged under the current spec ([evaluation_spec.md](evaluation_spec.md)):
+every sort was scored with the current eligibility and guards (`--existing-sort` re-scores, not
+counted in the budget). ΔS against the mean of the five default replicates (S 1019.7 bits/s, 772
+eligible units; δ = 28.6, δ/2 = 14.3); ΔS_track against their S_track (834.2; δ_track/2 = 13.6).
+Default recovers 31.4 of 40 hybrid units.
 
 ## Leader
 
-**`merge_correlation_threshold_2` = 0.7** (final merge; default 0.5).
+**`merge_correlation_threshold_2` = 0.7** (final merge; default 0.5): ΔS +63.2, +59.1, +44.1 on
+seeds 1–3, **mean +55.5** (ΔS_track +43.5), every guard passing on every seed.
 
-| Seed | ΔS | ΔS_track | Eligible | Units | G3 splits | Hybrid recovered | Guards |
-|---|---|---|---|---|---|---|---|
-| 1 | +39.3 | +32.0 | 379 | 842 | 3 | 30 | all pass |
-| 2 | +44.1 | +36.2 | 385 | 831 | 4 | 32 | all pass |
-| 3 | +34.4 | +27.9 | 382 | 827 | 3 | 32 | all pass |
-| **Mean** | **+39.3** (2.5δ, 6.8% of S) | **+32.0** | 382 | 833 | | | |
+## Three-seed results
 
-## All runs
+| Configuration | ΔS seeds 1, 2, 3 | Mean ΔS | Mean ΔS_track | Eligible | Guard failures |
+|---|---|---|---|---|---|
+| **Final merge 0.7** | +63.2, +59.1, +44.1 | **+55.5** | +43.5 | ~795 | none |
+| Final merge 0.7 + `ccg_threshold` 0.15 | +71.4, +72.2, +55.9 | +66.5 | +52.1 | ~800 | none; only +11.0 over the leader (needs 14.3) |
+| `standard` preset | +172.7, +176.5, +186.5 | +178.6 | +149.2 | ~1030 | seed 2: near-noise share 1.14% of S (cap 1%; seeds 1, 3: 0.60%, 0.75%) |
+| γ 2.0, bimodality 0 | +184.3, +189.9, +171.3 | +181.8 | +155.0 | ~1225 | seed 2: spikes removed 1.41% (limit 1.34%), duplicate pairs 0.45 per unit (limit 0.41) |
+| γ 1.0, bimodality 0 | +149.2, +156.2, +161.7 | +155.7 | +131.9 | ~1095 | seeds 2, 3: spikes removed 1.38–1.41% |
 
-| Run | Settings | ΔS | ΔS_track | Eligible | Units | G3 | Hybrid | Guard failures |
-|---|---|---|---|---|---|---|---|---|
-| 001 S1 | `standard` preset | +66.3 | +56.2 | 460 | 1081 | 16 | 31 | G3, G5, G6 pairs, G9 |
-| 002 S2 | shape criterion | +33.7 | +29.5 | 382 | 845 | 7 | 30 | G3 |
-| 003 S3 | bimodality 0.4 | +9.9 | +7.5 | 395 | 920 | 3 | 31 | none |
-| 004 S3 | bimodality 0.2 | +29.8 | +29.9 | 417 | 989 | 9 | 31 | G3, G5, G6 pairs |
-| 005 S3 | bimodality 0 | +25.3 | +22.8 | 419 | 1022 | 4 | 32 | G5, G6 both |
-| 006 S4 | tree connectivity 1.0 | +3.8 | +2.1 | 384 | 907 | 2 | 32 | G5 |
-| 007 S4 | tree connectivity 1.45 | +18.4 | +18.7 | 393 | 931 | 5 | 31 | G3, G5 |
-| 008 S5 | first merge 0.95 | +11.7 | +11.6 | 369 | 798 | 3 | 29 | G4 recovered |
-| 009 S5 | first merge 0.975 | −15.4 | −12.7 | 361 | 804 | 3 | 31 | none |
-| 010 S6 | **final merge 0.7** | +39.3 | +32.0 | 379 | 842 | 3 | 30 | none |
-| 011 S6 | final merge 0.85 | +74.3 | +59.1 | 402 | 870 | 11 | 30 | G3, G9 |
-| 012 S7 | `ccg_threshold` 0.15 | +13.9 | +11.0 | 369 | 825 | 3 | 30 | none |
-| 013 S8 | `acg_threshold` 0.1 | −1.2 | −1.9 | 361 | 816 | 3 | 30 | none |
-| 014 S9 | γ 1.0, bimodality 0 | +14.2 | +12.3 | 431 | 1127 | 4 | 32 | G5, G6 pairs |
-| 015 S9 | γ 1.35, bimodality 0 | +0.9 | +0.4 | 427 | 1187 | 6 | 31 | G3, G5, G6 both |
-| 016 S9 | γ 2.0, bimodality 0 | +40.7 | +38.2 | 479 | 1305 | 8 | 31 | G3, G5, G6 pairs |
-| 017 S10 | neighbours 5 | −6.2 | −4.1 | 367 | 852 | 1 | 31 | G5, G6 pairs |
-| 018 S10 | neighbours 20 | +10.6 | +9.6 | 351 | 740 | 5 | 31 | G3, G7 |
-| 019 S11 | downsampling 10 | −12.8 | −13.6 | 377 | 880 | 2 | 31 | G5, G6 pairs |
-| 020 S11 | downsampling 10, subset 50k | −12.8 | −13.6 | 377 | 880 | 2 | 31 | G5, G6 pairs (identical to 019: no centre reaches the subset cap) |
-| 021, 022 | final merge 0.7, seeds 2, 3 | +44.1, +34.4 | +36.2, +27.9 | 385, 382 | | 4, 3 | 32, 32 | none |
-| 023 | `ccg_threshold` 0.10 (range extension) | +21.4 | +16.4 | 378 | 836 | 5 | 30 | G3 |
-| 024–026 | C1: final merge 0.7 + `ccg_threshold` 0.15, seeds 1–3 | +48.8, +56.7, +44.2 (mean +49.9) | +40.1, +45.6, +35.6 | 383–393 | | 4, 5, 4 | 30–32 | G3 on seed 2 (5 vs 4.99): not adopted |
-| 027 | C2: final merge 0.7 + bimodality 0.4 | +47.8 | +38.0 | 413 | 953 | 3 | 31 | G6 both: dropped |
+## Single runs (seed 1)
 
-No run merged a hybrid HD pair. S and S_track agree throughout (r = 0.995, ΔS_track ≈ 0.85 ΔS).
+| Settings | ΔS | ΔS_track | Eligible | Hybrid recovered | Guard failures |
+|---|---|---|---|---|---|
+| Shape criterion | +42.3 | +33.2 | 796 | 30 | none |
+| Bimodality 0.4 | +85.1 | +73.7 | 875 | 31 | none |
+| Bimodality 0.2 | +114.3 | +99.7 | 940 | 31 | near-noise share |
+| Bimodality 0 | +136.0 | +114.3 | 979 | 32 | spikes removed |
+| Tree connectivity 1.0 | +87.2 | +74.3 | 865 | 32 | none |
+| Tree connectivity 1.45 | +93.0 | +76.7 | 884 | 31 | none |
+| Tree connectivity 1.9 | +102.6 | +87.6 | 899 | 31 | hybrid agreement |
+| First merge 0.95 | −8.7 | −6.4 | 762 | 29 | hybrid recovered |
+| First merge 0.975 | −3.4 | −5.2 | 767 | 31 | none |
+| Final merge 0.85 | +102.5 | +80.1 | 826 | 30 | none |
+| Final merge 0.95 | +109.5 | +85.5 | 846 | 30 | none |
+| `ccg_threshold` 0.15 | +25.4 | +19.5 | 788 | 30 | none |
+| `ccg_threshold` 0.10 | +42.2 | +32.7 | 799 | 30 | none |
+| `acg_threshold` 0.1 | +8.9 | +7.1 | 779 | 30 | none |
+| γ 1.35, bimodality 0 | +159.7 | +134.2 | 1123 | 31 | spikes removed, duplicate pairs |
+| γ 2.65, bimodality 0 | +190.3 | +160.6 | 1337 | 32 | near-noise share, spikes removed, duplicate pairs |
+| Neighbours 5 | −10.6 | −5.1 | 787 | 31 | duplicate pairs |
+| Neighbours 20 | −9.4 | −10.3 | 719 | 31 | untuned units |
+| Downsampling 10 (with or without a 50k subset cap: identical, no centre reaches the cap) | +16.1 | +13.5 | 821 | 31 | near-noise share, duplicate pairs |
+| Final merge 0.7 + bimodality 0.4 | +146.3 | +120.3 | 901 | 31 | spikes removed |
+
+No run merged a hybrid head-direction pair. S and S_track move together (ΔS_track ≈ 0.84 ΔS).
 
 ## What round 1 shows
 
-- **Fewer merges at the final merge step is the main lever.** Default KS4 merges pairs whose
-  templates correlate above 0.5 and whose CCG passes its refractoriness test. Raising the threshold
-  to 0.7 gains 39 bits/s cleanly; 0.85 gains 74 but leaves 11 same-neuron pairs unmerged (G3). So
-  among default's final merges, many join differently tuned cells, and some join halves of one cell.
-  The shape criterion (S2) and `ccg_threshold` (S7) act on the same merges and point the same way.
-- **More units is not the same as more resolution.** Settings that split earlier in the pipeline
-  (bimodality 0, γ, tree connectivity) add 30–170 eligible units but gain less per unit, and they
-  fail G5 and G6: many of the extra units are small, near-noise, or duplicates of others.
-- **The graph clustering's own settings don't help.** γ is erratic (+14, +1, +41), and neighbours,
-  downsampling and the subset cap gain nothing.
-- **The first merge should stay where it is:** 0.95 loses a hybrid unit, 0.975 costs 15 bits/s.
+- **Splitting earlier in the pipeline gives the largest gains.** Relaxing the merge tree
+  (bimodality 0, the `standard` preset) or raising the graph resolution (γ with bimodality 0) gains
+  +136 to +190 bits/s, about three times what the final-merge settings gain (+55 to +110). Tracked
+  heading follows.
+- **These configurations sit at the cleaning limits.** They produce more duplicate spikes (removed
+  before scoring) and more near-noise units, and each fails one guard on one or two of its three
+  seeds, by small margins.
+- **Final-merge settings gain cleanly.** Raising `merge_correlation_threshold_2` (0.7, 0.85, 0.95)
+  and lowering `ccg_threshold` pass every guard; the shape criterion acts on the same merges.
+- **The first merge should stay where it is:** 0.95 loses a hybrid unit, 0.975 costs a little.
+- **Neighbours and downsampling were screened only at default tree settings**, where the tree
+  re-merges most of what the clustering produces; they stay in round 2, tested together with merge
+  settings.
 
 ## Budget
 
-27 of the 85 search runs used (17 of round 1's 44 unused); 15 reserved runs untouched. About 2.3 hours
-of GPU.
-
-## Re-judged under spec v0.9–v0.10
-
-v0.9 drops the refractory criterion for scored units and makes suspected splits (G3) reported only;
-v0.10 makes calibration C (G9) reported only and takes G6's duplicate pairs per unit. All 27 sorts
-were re-scored (runs 055–081; not counted), then the round 1 rules were re-applied: δ = 28.6,
-δ/2 = 14.3, δ_track/2 = 13.6; default S 1019.7 with 772 eligible units.
-
-**Three-seed results** (ΔS per seed; guards):
-
-| Configuration | ΔS seeds 1, 2, 3 | Mean ΔS | Mean ΔS_track | Eligible | Guards |
-|---|---|---|---|---|---|
-| **Final merge 0.7 (leader)** | +63.2, +59.1, +44.1 | **+55.5** | +43.5 | ~795 | all pass |
-| Final merge 0.7 + `ccg_threshold` 0.15 (C1) | +71.4, +72.2, +55.9 | +66.5 | +52.1 | ~800 | all pass; only +11.0 over the leader (needs 14.3) |
-| `standard` preset | +172.7, +176.5, +186.5 | +178.6 | +149.2 | ~1030 | seed 2: G5 1.14% of S (cap 1%; seeds 1, 3: 0.60%, 0.75%) |
-| γ 2.0, bimodality 0 | +184.3, +189.9, +171.3 | +181.8 | +155.0 | ~1225 | seed 2: G6 spikes removed 1.41% (limit 1.34%) and pairs per unit 0.45 (0.41) |
-| γ 1.0, bimodality 0 | +149.2, +156.2, +161.7 | +155.7 | +131.9 | ~1095 | seeds 2, 3: G6 spikes removed 1.38–1.41% |
-
-**Single runs** (seed 1) passing every guard: final merge 0.85 +102.5 and 0.95 +109.5 (extension);
-tree connectivity 1.0 +87.2 and 1.45 +93.0; bimodality 0.4 +85.1; shape criterion +42.3;
-`ccg_threshold` 0.10 +42.2 and 0.15 +25.4; `acg_threshold` 0.1 +8.9. Failing: bimodality 0.2
-(G5), bimodality 0 (G6), γ 1.35 and 2.65 (G5, G6), tree connectivity 1.9 (+102.6; G4 median
-agreement), first merge 0.95 (G4), neighbours 5 (G6) and 20 (G7), downsampling 10 (G5, G6).
-Hybrid recovery stays at 30–32 of 40 with no head-direction pair merged in every run.
-
-**What changes:** with contaminated units scored, splitting earlier in the pipeline (bimodality 0, γ,
-the `standard` preset) gains about three times what the final-merge settings gain (+155 to +182 vs
-+55 to +110), and tracked heading follows (ΔS_track ≈ 0.84 ΔS). These configurations sit at the
-G5 and G6 limits: they produce more duplicate spikes (removed before scoring) and more near-noise
-units, and fail one guard on one or two of their three seeds.
-
-Round 1 used 36 of its 44 runs (all 10 replicate slots and all 4 extension slots); the 15 reserved
-runs are untouched.
+36 of the 85 search runs used (round 1 had 44); the 15 reserved runs are untouched.
