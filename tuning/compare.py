@@ -89,7 +89,7 @@ def guards(cand, defaults):
     at_most = lambda v, d, t: v <= d + t
     return [
         check('G1 eligible units', cand['n_eligible'], float(np.mean([e['n_eligible'] for e in defaults])),
-              lambda v, d, t: 0.8 * d <= v <= 1.25 * d),
+              lambda v, d, t: v >= 0.8 * d),
         relative('G2 S_track (backstop)', 'S_track', lambda v, d, t: v >= d - 5 * t),
         relative('G3 suspected splits', 'n_suspected_splits', at_most),
         *hybrid_guards(),

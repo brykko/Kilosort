@@ -4,6 +4,10 @@
 
 **Freezing:** the spec is frozen when (1) every [DECIDE] item is settled, (2) Phase 0 has passed and its [PHASE 0] numbers are filled in, and (3) the spec and the evaluation harness are committed together, with the commit hash and the SHA-256 of every harness file recorded at the top of the search log. Any later change gets a new version number and a log entry stating what changed and why. A change to the score, guards or thresholds after the search has started invalidates comparisons made under the old version, and those candidates must be re-scored.
 
+### Changes in v0.7 (draft)
+
+- **G1 has no upper bound** (§7.1): eligible units ≥ 0.8 × default. Default is thought to under-separate MEC units, so a correct sort may have many more units than default, and the round 1 search (`search_round1.md`) aims for exactly that. Over-splitting is covered by G3 (same-neuron splits), G4 (hybrid units split or lost), G6 (duplicates) and G7 (untuned units); unit counts are still reported for every run.
+
 ### Changes in v0.6
 
 - **KS4 base is `perf-optimizations` (`e28143c`)** (§2): same output as `0e07514` plus the seed patch except where KS4 raced, bit-reproducible for a given seed, about 2.5× faster, no plots.
@@ -210,7 +214,7 @@ Tolerances marked τ are 2 × the SD of that quantity across the five default re
 
 | # | Guard | Pass condition | What it catches |
 |---|---|---|---|
-| G1 | Unit count | Eligible units within 0.8–1.25 × default | Wholesale fragmentation or loss |
+| G1 | Unit count | Eligible units ≥ 0.8 × default (no upper bound; fragmentation is left to G3, G4, G6, G7) | Wholesale loss of units |
 | G3 | Suspected splits | Count ≤ default + τ_split (§7.3) | Oversplitting, which S under-penalises |
 | G4 | Hybrid recovery | §7.4 | Splits, merges, misses on known units; merges of differently tuned HD pairs |
 | G5 | Artefact share | Share of S from eligible units that fail a *stricter* version of the waveform screen (a margin inside each noise threshold: duration ≤ 1100 µs, baseline ≤ 0.25, second peak ≤ 0.7 × trough, decay 0.0125–0.09 per µm, footprint ≤ 250 µm) ≤ default + τ | Near-noise units that only just passed eligibility |
