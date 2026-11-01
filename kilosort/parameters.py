@@ -556,6 +556,43 @@ EXTRA_PARAMETERS = {
             """
     },
 
+    'tree_refractory_significance': {
+        'gui_name': 'tree refractory significance', 'type': bool, 'min': None,
+        'max': None, 'exclude': [], 'default': False, 'step': 'clustering',
+        'description':
+            """
+            In the second clustering pass, the merge tree merges two groups of
+            clusters whose cross-correlogram is refractory. By default a sparse
+            pair (expected count below 0.25 per 1 ms bin) counts as refractory
+            without a significance test, so small groups can be merged by
+            chance. If True, the refractory dip must be significant.
+            """
+    },
+
+    'tree_walk': {
+        'gui_name': 'tree walk', 'type': str, 'min': None, 'max': None,
+        'exclude': [], 'default': 'top_down', 'step': 'clustering',
+        'description':
+            """
+            Order in which the merge tree's nodes are decided. 'top_down'
+            (original): from the root; a node that merges takes its whole
+            subtree with it, untested. 'bottom_up': in the order the tree formed
+            them; a node may merge only if both its children are single
+            clusters by then, so a merge high in the tree can't absorb splits
+            below it.
+            """
+    },
+
+    'cluster_min_group_spikes': {
+        'gui_name': 'cluster min group spikes', 'type': int, 'min': 1,
+        'max': np.inf, 'exclude': [], 'default': 1000, 'step': 'clustering',
+        'description':
+            """
+            A clustering group with fewer spikes than this becomes a single
+            cluster, without clustering. Was hard-coded to 1000.
+            """
+    },
+
     'random_seed': {
         'gui_name': 'random seed', 'type': int, 'min': 0, 'max': np.inf,
         'exclude': [], 'default': 1, 'step': 'clustering',

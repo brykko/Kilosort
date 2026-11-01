@@ -50,7 +50,11 @@ def bimod_score(xproj):
     score = 1 - np.maximum(xmin/xm1, xmin/xm2)
     return score
 
-def check_CCG(st1, st2=None, nbins = 500, tbin  = 1/1000, use_shape_criterion=False):
+def check_CCG(st1, st2=None, nbins = 500, tbin  = 1/1000, use_shape_criterion=False,
+              require_significance=False):
+    # require_significance: a pair is cross-refractory only if its dip is
+    # significant (Q12 < .05). By default a sparse pair (Q00 < .25, i.e. an
+    # expected count under 0.25 per 1 ms bin) also counts, without that test.
     if st2 is None:
         st2 = st1.copy()
     # Empty trains must be checked before compute_CCG (it calls .max() on
@@ -63,18 +67,20 @@ def check_CCG(st1, st2=None, nbins = 500, tbin  = 1/1000, use_shape_criterion=Fa
     if T == 0:
         return False, False
     R12, Q12, Q00 = CCG_metrics(st1, st2, K, T,  nbins = nbins, tbin = tbin)
-    is_refractory    = R12<.1  and (Q12<.2  or Q00<.25)
-    cross_refractory = R12<.25 and (Q12<.05 or Q00<.25)
+    sparse = Q00 < .25 and not require_significance
+    is_refractory    = R12<.1  and (Q12<.2  or sparse)
+    cross_refractory = R12<.25 and (Q12<.05 or sparse)
     # Optional shape criterion (CCG.same_shape); st1, st2 from different units
     if use_shape_criterion and (is_refractory or cross_refractory):
         if not same_shape(st1, st2, K, nbins=nbins, tbin=tbin):
             is_refractory, cross_refractory = False, False
     return is_refractory, cross_refractory
 
-def refractoriness(st1, st2, use_shape_criterion=False):
+def refractoriness(st1, st2, use_shape_criterion=False, require_significance=False):
     # compute goodness of st1, st2, and both
 
-    is_refractory = check_CCG(st1, st2, use_shape_criterion=use_shape_criterion)[1]
+    is_refractory = check_CCG(st1, st2, use_shape_criterion=use_shape_criterion,
+                              require_significance=require_significance)[1]
     if is_refractory:
         criterion = 1 # never split
         #print('this is refractory')
@@ -91,22 +97,32 @@ def refractoriness(st1, st2, use_shape_criterion=False):
 
 def split(Xd, xtree, tstat, iclust, my_clus, verbose = True, meta = None,
           bimodality_threshold=0.6, connectivity_threshold=0.2,
-          use_shape_criterion=False):
-    # Walks the merge tree from the root. At each node the two sides are kept
-    # apart (criterion -1) if their graph connectivity is below
+          use_shape_criterion=False, refractory_significance=False,
+          walk='top_down', record=None):
+    # Decides each node of the merge tree: the two sides are kept apart
+    # (criterion -1) if their graph connectivity is below
     # connectivity_threshold, merged (criterion 1) if their spike trains are
     # cross-refractory (template pass only), else merged unless their features
     # project bimodally (score >= bimodality_threshold).
+    # walk='top_down' (stock): from the root; a merged node takes its whole
+    # subtree with it, untested. walk='bottom_up': in the order the tree formed
+    # the nodes; a node may merge only if both its children are single
+    # clusters by then.
+    # record: optional list; one dict per decided node is appended.
     xtree = np.array(xtree)
 
     kk = xtree.shape[0]-1
     nc = xtree.shape[0] + 1
     valid_merge = np.ones((nc-1,), 'bool')
+    single = np.zeros(2*nc - 1, 'bool')     # bottom_up: node is one cluster
+    single[:nc] = True
 
-
-    for kk in range(nc-2,-1,-1):
+    order = range(nc-2,-1,-1) if walk == 'top_down' else range(nc-1)
+    for kk in order:
         if not valid_merge[kk]:
             continue;
+        if walk != 'top_down' and not (single[xtree[kk, 0]] and single[xtree[kk, 1]]):
+            continue
 
         ix1 = np.isin(iclust, my_clus[xtree[kk, 0]])
         ix2 = np.isin(iclust, my_clus[xtree[kk, 1]])
@@ -119,10 +135,18 @@ def split(Xd, xtree, tstat, iclust, my_clus, verbose = True, meta = None,
                 criterion = -1
 
 
+        source = 'connectivity' if criterion == -1 else None
         if meta is not None and criterion==0:
             # second mutation is based on meta_data
             criterion = refractoriness(meta[ix1], meta[ix2],
-                                       use_shape_criterion=use_shape_criterion)
+                                       use_shape_criterion=use_shape_criterion,
+                                       require_significance=refractory_significance)
+            if criterion == 1:
+                source = 'refractory'
+                if record is not None and not refractoriness(
+                        meta[ix1], meta[ix2], use_shape_criterion=use_shape_criterion,
+                        require_significance=True):
+                    source = 'refractory_sparse_only'
             #criterion = 0
         
         if criterion==0:
@@ -130,6 +154,7 @@ def split(Xd, xtree, tstat, iclust, my_clus, verbose = True, meta = None,
             # third mutation is bimodality
             #xproj, score = check_split(Xd, kk, xtree, iclust, my_clus)
             criterion = 2 * (score < bimodality_threshold) - 1
+            source = 'bimodality'
 
         if criterion==0:
             # fourth mutation is local modularity (not reachable)
@@ -141,10 +166,19 @@ def split(Xd, xtree, tstat, iclust, my_clus, verbose = True, meta = None,
             #print('%3.0d, %6.0d, %6.0d, %6.0d, %2.2f,%4.2f, %2.2f'%(kk, n1, n2,n1+n2,
             #tstat[kk,0], tstat[kk,-1], score))
 
+        if record is not None:
+            below = valid_merge.sum()
         if criterion==1:
             valid_merge[kk] = 0
-            clean_tree(valid_merge, xtree, xtree[kk,0])
-            clean_tree(valid_merge, xtree, xtree[kk,1])
+            if walk == 'top_down':
+                clean_tree(valid_merge, xtree, xtree[kk,0])
+                clean_tree(valid_merge, xtree, xtree[kk,1])
+            else:
+                single[xtree[kk, 2]] = True
+        if record is not None:
+            record.append({'node': int(kk), 'n1': int(ix1.sum()), 'n2': int(ix2.sum()),
+                           'connectivity': float(tstat[kk, 0]), 'criterion': int(criterion),
+                           'source': source, 'untested_removed': int(below - valid_merge.sum() - (criterion == 1))})
 
     tstat = tstat[valid_merge]
     xtree = xtree[valid_merge]

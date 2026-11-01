@@ -463,6 +463,9 @@ def run(ops, st, tF, mode='template', device=torch.device('cuda'),
     bimodality_threshold = ops['settings']['merge_bimodality_threshold']
     connectivity_threshold = ops['settings']['tree_connectivity_threshold']
     use_shape_criterion = ops['settings']['correlogram_shape_criterion']
+    refractory_significance = ops['settings']['tree_refractory_significance']
+    walk = ops['settings']['tree_walk']
+    min_group = ops['settings']['cluster_min_group_spikes']
     seed = ops['settings']['cluster_init_seed']
     ycent = y_centers(ops)
     xcent = x_centers(ops)
@@ -516,7 +519,7 @@ def run(ops, st, tF, mode='template', device=torch.device('cuda'),
                     if device == torch.device('cuda'):
                         torch.cuda.reset_peak_memory_stats(device)
                     v = True
-                if Xd.shape[0] < 1000:
+                if Xd.shape[0] < min_group:
                     iclust = torch.zeros((Xd.shape[0],))
                 else:
                     if mode == 'template':
@@ -545,6 +548,8 @@ def run(ops, st, tF, mode='template', device=torch.device('cuda'),
                         Xd.numpy(), xtree, tstat,iclust, my_clus, meta=st0,
                         bimodality_threshold=bimodality_threshold,
                         connectivity_threshold=connectivity_threshold,
+                        refractory_significance=refractory_significance,
+                        walk=walk,
                         use_shape_criterion=use_shape_criterion
                         )
 
