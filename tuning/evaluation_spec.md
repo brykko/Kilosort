@@ -1,8 +1,14 @@
 # Kilosort 4 settings search: evaluation spec
 
-**Status:** v0.9, frozen after round 1 (latest `freeze` record in the search log and `runs/frozen.json`). Its Phase 0 re-checks passed (§8, v0.9 note). v0.7–0.8 were frozen for round 1's runs. Items marked **[DECIDE]** need your call; items marked **[PHASE 0]** are numbers set by the validation runs and then frozen.
+**Status:** v0.10, frozen after round 1 (latest `freeze` record in the search log and `runs/frozen.json`). v0.9's Phase 0 re-checks passed (§8, v0.9 note); v0.10 changes only two guards. v0.7–0.8 were frozen for round 1's runs. Items marked **[DECIDE]** need your call; items marked **[PHASE 0]** are numbers set by the validation runs and then frozen.
 
 **Freezing:** the spec is frozen when (1) every [DECIDE] item is settled, (2) Phase 0 has passed and its [PHASE 0] numbers are filled in, and (3) the spec and the evaluation harness are committed together, with the commit hash and the SHA-256 of every harness file recorded at the top of the search log. Any later change gets a new version number and a log entry stating what changed and why. A change to the score, guards or thresholds after the search has started invalidates comparisons made under the old version, and those candidates must be re-scored.
+
+### Changes in v0.10
+
+Found when round 1 was re-scored under v0.9: two guards had become unit-count penalties, against v0.9's principle.
+- **G9 (calibration C) is reported, not a guard** (§7.5). C scores a naive-Bayes population decoder, which treats units as independent given heading. Units share fluctuations heading doesn't explain (population bursts, theta-cycle gain, spikes of the same cells spread over overlapping units), and the decoder counts each shared fluctuation once per unit, so it grows overconfident as units are added, whether or not the sort is better. Separating two real neighbouring cells therefore lowers C and merging them raises it: C favours under-splitting. Under v0.9 it correlated with eligible units at r = −0.81 across round 1's sorts, and its 5τ tolerance shrank to 0.94 bits. Artefacts are covered by the noise screen, the masks and G5.
+- **G6's flagged-pair count is taken per unit** (§7.1): flagged duplicate pairs / units ≤ default + τ (default 0.35–0.40 per unit). The raw count grows with the number of units (r = 0.91 across round 1) and stays reported. The fraction of spikes removed was already normalised and is unchanged.
 
 ### Changes in v0.9
 
@@ -237,7 +243,7 @@ Tolerances marked τ are 2 × the SD of that quantity across the five default re
 | (G3) | Suspected splits | Reported only (v0.9); count per §7.3 | Over-splitting, left to S to weigh against better separation |
 | G4 | Hybrid recovery | §7.4 | Splits, merges, misses on known units; merges of differently tuned HD pairs |
 | G5 | Artefact share | Share of S from eligible units that fail a *stricter* version of the waveform screen (a margin inside each noise threshold: duration ≤ 1100 µs, baseline ≤ 0.25, second peak ≤ 0.7 × trough, decay 0.0125–0.09 per µm, footprint ≤ 250 µm) ≤ 1% of S (v0.9; was default + τ) | Near-noise units that only just passed eligibility |
-| G6 | Cleaning burden | Fraction of spikes removed by §6.2–6.3, and flagged-pair count, ≤ default + τ | Settings that generate duplicates or artefacts, even when the harness neutralises them |
+| G6 | Cleaning burden | Fraction of spikes removed by §6.2–6.3, and flagged pairs per unit (raw count reported; v0.10), each ≤ default + τ | Settings that generate duplicates or artefacts, even when the harness neutralises them |
 | G7 | Untuned units | Number of eligible units with S_i below the 25th percentile of default's S_i ≥ 0.9 × default | Selection pressure against non-HD cells (circularity) |
 
 ### 7.2 Tracked-heading score S_track
@@ -279,7 +285,7 @@ The sharp ±1.5 ms window is deliberate. Cells with different tuning have broad 
 |---|---|---|---|
 | G2 | Tracked-heading anchor | S_track < S_track,default − 5τ (§7.2) | A good sort is expected to fit θ_ref better than tracked heading, and gains concentrated where θ_ref departs from tracking may lower S_track slightly. Only a large drop, while S rises, signals gains from non-heading structure in θ_ref (§12). |
 | G8 | Mask integrity | Raw mask hash differs from the frozen one | Should never trip; catches harness tampering or drift |
-| G9 | Calibration | C < C_default − 5τ_C | Duplicates and artefacts are now removed directly by §6. Correlated internal dynamics make the decoder overconfident by the same amount for every sort, so this is a coarse tripwire, not a tight guard. |
+| (G9) | Calibration | Reported only since v0.10 (was: fails if C < C_default − 5τ_C); it favours fewer units, see the v0.10 changes | Duplicates and artefacts are now removed directly by §6. Correlated internal dynamics make the decoder overconfident by the same amount for every sort, so this is a coarse tripwire, not a tight guard. |
 
 **C:** Poisson naive-Bayes decoding of θ_ref from the candidate's eligible units in each moving theta cycle, flat prior, cross-validated as in §5.3. C = mean over cycles of log2(posterior at the θ_ref bin × 60), in bits relative to uniform. Never maximised: dropping units can raise it.
 
@@ -362,7 +368,7 @@ A spec change during the search gets a new version and a new `freeze` record (re
 - *Correlated internal dynamics* (theta sweeps, internal-direction alternation): add noise to decoding but affect every candidate identically on the same data, so they don't bias paired comparisons. θ_ref follows them, so S treats them as signal.
 - *Self-leak into θ_ref:* a unit's own reference-sort spikes shift θ_ref by ~1/N. Estimated at ~0.1% of S beforehand; the prototype invariance test measured about 2 bits/s (~0.4% of S) for a sort scored against a reference built from itself. Checked once (§8.4).
 - *Genuine sub-millisecond synchrony* (e.g. gap-junction-coupled interneurons) can be flagged as small duplicates in §6.3. Its effect on S is small, and §8.10 measures how often it happens.
-- *Overconfidence of the naive-Bayes decoder:* only affects the backstop C (G9), not S.
+- *Overconfidence of the naive-Bayes decoder:* only affects C, which is reported, not a guard (v0.10), and not S.
 
 ## 13. Open decisions
 
