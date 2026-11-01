@@ -65,3 +65,36 @@ No run merged a hybrid HD pair. S and S_track agree throughout (r = 0.995, ΔS_t
 
 27 of the 85 search runs used (17 of round 1's 44 unused); 15 reserved runs untouched. About 2.3 hours
 of GPU.
+
+## Re-judged under spec v0.9–v0.10
+
+v0.9 drops the refractory criterion for scored units and makes suspected splits (G3) reported only;
+v0.10 makes calibration C (G9) reported only and takes G6's duplicate pairs per unit. All 27 sorts
+were re-scored (runs 055–081; not counted), then the round 1 rules were re-applied: δ = 28.6,
+δ/2 = 14.3, δ_track/2 = 13.6; default S 1019.7 with 772 eligible units.
+
+**Three-seed results** (ΔS per seed; guards):
+
+| Configuration | ΔS seeds 1, 2, 3 | Mean ΔS | Mean ΔS_track | Eligible | Guards |
+|---|---|---|---|---|---|
+| **Final merge 0.7 (leader)** | +63.2, +59.1, +44.1 | **+55.5** | +43.5 | ~795 | all pass |
+| Final merge 0.7 + `ccg_threshold` 0.15 (C1) | +71.4, +72.2, +55.9 | +66.5 | +52.1 | ~800 | all pass; only +11.0 over the leader (needs 14.3) |
+| `standard` preset | +172.7, +176.5, +186.5 | +178.6 | +149.2 | ~1030 | seed 2: G5 1.14% of S (cap 1%; seeds 1, 3: 0.60%, 0.75%) |
+| γ 2.0, bimodality 0 | +184.3, +189.9, +171.3 | +181.8 | +155.0 | ~1225 | seed 2: G6 spikes removed 1.41% (limit 1.34%) and pairs per unit 0.45 (0.41) |
+| γ 1.0, bimodality 0 | +149.2, +156.2, +161.7 | +155.7 | +131.9 | ~1095 | seeds 2, 3: G6 spikes removed 1.38–1.41% |
+
+**Single runs** (seed 1) passing every guard: final merge 0.85 +102.5 and 0.95 +109.5 (extension);
+tree connectivity 1.0 +87.2 and 1.45 +93.0; bimodality 0.4 +85.1; shape criterion +42.3;
+`ccg_threshold` 0.10 +42.2 and 0.15 +25.4; `acg_threshold` 0.1 +8.9. Failing: bimodality 0.2
+(G5), bimodality 0 (G6), γ 1.35 and 2.65 (G5, G6), tree connectivity 1.9 (+102.6; G4 median
+agreement), first merge 0.95 (G4), neighbours 5 (G6) and 20 (G7), downsampling 10 (G5, G6).
+Hybrid recovery stays at 30–32 of 40 with no head-direction pair merged in every run.
+
+**What changes:** with contaminated units scored, splitting earlier in the pipeline (bimodality 0, γ,
+the `standard` preset) gains about three times what the final-merge settings gain (+155 to +182 vs
++55 to +110), and tracked heading follows (ΔS_track ≈ 0.84 ΔS). These configurations sit at the
+G5 and G6 limits: they produce more duplicate spikes (removed before scoring) and more near-noise
+units, and fail one guard on one or two of their three seeds.
+
+Round 1 used 36 of its 44 runs (all 10 replicate slots and all 4 extension slots); the 15 reserved
+runs are untouched.
