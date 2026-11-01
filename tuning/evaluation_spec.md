@@ -1,11 +1,13 @@
 # Kilosort 4 settings search: evaluation spec
 
-**Status:** draft v0.6, not frozen. Items marked **[DECIDE]** need your call; items marked **[PHASE 0]** are numbers set by the validation runs and then frozen.
+**Status:** v0.7, frozen for search round 1 (commit and hashes in `runs/frozen.json` and the first search-log record). Items marked **[DECIDE]** need your call; items marked **[PHASE 0]** are numbers set by the validation runs and then frozen.
 
 **Freezing:** the spec is frozen when (1) every [DECIDE] item is settled, (2) Phase 0 has passed and its [PHASE 0] numbers are filled in, and (3) the spec and the evaluation harness are committed together, with the commit hash and the SHA-256 of every harness file recorded at the top of the search log. Any later change gets a new version number and a log entry stating what changed and why. A change to the score, guards or thresholds after the search has started invalidates comparisons made under the old version, and those candidates must be re-scored.
 
-### Changes in v0.7 (draft)
+### Changes in v0.7
 
+- **New KS4 settings for round 1** (§4, `search_round1.md` §2.1): the `extra-settings` merge controls (`correlogram_shape_criterion`, `merge_bimodality_threshold`, `merge_correlation_threshold_1`, `merge_correlation_threshold_2`) and three hard-coded clustering constants made settings (`cluster_init_clusters`, `cluster_resolution`, `tree_connectivity_threshold`). All default to stock behaviour. `fast_matching` is fixed at False.
+- **Freezing also hashes the KS4 sources** (`kilosort/*.py`, the kernel source and the built kernel library) and the round plans (§11).
 - **G1 has no upper bound** (§7.1): eligible units ≥ 0.8 × default. Default is thought to under-separate MEC units, so a correct sort may have many more units than default, and the round 1 search (`search_round1.md`) aims for exactly that. Over-splitting is covered by G3 (same-neuron splits), G4 (hybrid units split or lost), G6 (duplicates) and G7 (untuned units); unit counts are still reported for every run.
 
 ### Changes in v0.6
@@ -90,10 +92,11 @@ The excerpt is sorted as one run. The hybrid version (§7.4) is written once fro
 
 ## 4. What may vary, what is fixed
 
-**May vary:** any KS4 setting, and KS4 code under `kilosort/`, except as below. Every code change is stored as a diff with its hash in the log.
+**May vary:** any KS4 setting, and KS4 code under `kilosort/`, except as below. Every code change is stored as a diff with its hash in the log. Round 1 varies settings only; the settings it adds to KS4 are listed in `search_round1.md` §2.1 and reproduce stock KS4 exactly at their defaults (checked by a full sort, §2.2 there).
 
 **Fixed:**
 - `duplicate_spike_ms = 0.25` (default). Otherwise a sort could pass the refractory criterion (§6.4) by deleting violating spikes.
+- `fast_matching = False` (default): the exact matching path, so every run uses the arithmetic the default replicates used.
 - `do_CAR = True` (default). The excerpt carries large common-mode ringing (about 76 events per minute reaching ≥ 256 channels before referencing) that referencing removes; with it off, the ringing would enter the sort as artefact units.
 - Input files (the excerpt binaries of §2.1), probe file, sampling rate, data type, `tmin`/`tmax`.
 - Everything under `tuning/` (harness, reference heading, masks, hybrid generator, this spec).
@@ -291,6 +294,7 @@ Not counted in the search budget. The search may not start until every item pass
 **Budget:** 100 KS4 runs on the excerpt, including replicates and ablations; 15 of them are reserved for §9.2–9.3.
 
 ### 9.1 Search
+- The search runs in rounds, each with a plan written and frozen before its first run: round 1 (clustering resolution) is `search_round1.md`.
 - Each run is logged before its result is read (§11).
 - A run that improves on default (§5.4, single replicate) and passes all guards gets 2 further seed replicates before it can be the leader.
 

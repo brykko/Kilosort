@@ -11,6 +11,7 @@ run them.
 | File | Role |
 |---|---|
 | `evaluation_spec.md` | The spec: score, cleaning, guards, Phase 0, search rules |
+| `search_round1.md` | Round 1 plan (clustering resolution): preparation results, screen, combination |
 | `config.json` | Paths and fixed parameters used by the wrapper |
 | `run_candidate.py` | Wrapper: `freeze`, and `run` (sort → clean → evaluate → compare → log) |
 | `run_sort.py` | One KS4 sort from this checkout, with `provenance.json` |
@@ -25,6 +26,7 @@ run them.
 | `extract_segment.py`, `extract_tracking.py`, `make_probe.py` | One-off extraction of the excerpt, tracking and probe |
 | `raw_artefacts.py`, `plot_raw_events.py` | Raw transient diagnostic and safety-net mask (§6.1) |
 | `replicates.py`, `alpha_scan.py`, `self_leak.py`, `perturb.py`, `adjudicate.py`, `reference_heldout.py`, `reference_invariance.py`, `compare_references.py` | Phase 0 checks (§8) |
+| `cluster_diagnostic.py`, `same_sort.py` | Round 1 preparation: clustering diagnostic, exact sort comparison |
 | `ring_reference.py` | Superseded HMM reference (kept for the record) |
 
 **Data and results** (`C:\data\ks4_tuning\26648_kobe_2020-08-21\`):
@@ -39,6 +41,7 @@ run them.
 | `runs\reference_seed1000\` | Reference sort and the frozen `theta_ref.npz` (second reference: `reference_seed1001`) |
 | `runs\hybrid_default_seed1..5\` | Default replicates on the hybrid excerpt (the comparison baseline) |
 | `runs\phase0_*.json` | Phase 0 results |
+| `runs\check_port_seed1\`, `runs\cluster_diagnostic*_seed1\`, `runs\round1_cluster_diagnostic*.json` | Round 1 preparation: bit-identity sort, diagnostic sorts and results |
 | `runs\frozen.json` | Hashes recorded at freezing |
 | `runs\search_log.jsonl` | Append-only search log (one `start` and one `result` record per run) |
 | `runs\search\<run_id>\` | Each search run: `sort\` (KS4 output, evaluation), `comparison.json`, `summary.json`, logs |

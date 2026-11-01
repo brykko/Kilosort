@@ -2,10 +2,11 @@
 default, log.
 
     python run_candidate.py freeze
-        Hash the harness (tuning/*.py, the spec, config.json) and the frozen inputs (theta_ref,
-        raw-artefact mask, hybrid truth; hybrid excerpt by size and modification time), record them
-        with the git commit in frozen.json and as the first record of the search log. Refuses if
-        tuning/ has uncommitted changes or the log already exists.
+        Hash the harness (tuning/*.py, the spec, the round plans, config.json), the KS4 sources
+        (kilosort/*.py, kilosort/cuda/*.cu and the built kernel library) and the frozen inputs
+        (theta_ref, raw-artefact mask, hybrid truth; hybrid excerpt by size and modification time),
+        record them with the git commit in frozen.json and as the first record of the search log.
+        Refuses if tuning/ or kilosort/ has uncommitted changes or the log already exists.
 
     python run_candidate.py run --name NAME --settings '{"Th_learned": 7}' --seed 1 --rationale "..."
         Verifies every hash against frozen.json (refuses to score on any mismatch), writes a 'start'
@@ -47,10 +48,15 @@ def sha256(p, chunk=1 << 24):
 
 
 def current_hashes():
-    harness = sorted([*HERE.glob('*.py'), HERE / 'evaluation_spec.md', HERE / 'config.json'])
+    harness = sorted([*HERE.glob('*.py'), HERE / 'evaluation_spec.md', *HERE.glob('search_round*.md'),
+                      HERE / 'config.json'])
+    ks = HERE.parent / 'kilosort'
+    kilosort = sorted([*ks.glob('*.py'), *(ks / 'cuda').glob('*.cu'), *(ks / 'cuda').glob('*.dll'),
+                       *(ks / 'cuda').glob('*.so')])
     data = path('data').stat()
     return {
         'harness': {f.name: sha256(f) for f in harness},
+        'kilosort': {f.relative_to(ks).as_posix(): sha256(f) for f in kilosort},
         'reference': sha256(path('reference')),
         'raw_artefacts': sha256(path('raw_artefacts')),
         'hybrid_truth': sha256(path('hybrid_truth')),
@@ -79,12 +85,13 @@ def git(*a):
 def freeze():
     if path('log').exists():
         raise SystemExit(f"{path('log')} already exists; the search log is append-only")
-    if git('status', '--porcelain', '--', 'tuning').strip():
-        raise SystemExit('tuning/ has uncommitted changes; commit before freezing')
+    if git('status', '--porcelain', '--', 'tuning', 'kilosort').strip():
+        raise SystemExit('tuning/ or kilosort/ has uncommitted changes; commit before freezing')
     frozen = {'commit': git('rev-parse', 'HEAD').strip(), 'hashes': current_hashes()}
     path('frozen').write_text(json.dumps(frozen, indent=2))
     log({'type': 'freeze', **frozen})
-    print(f"frozen at {frozen['commit'][:7]}; {len(frozen['hashes']['harness'])} harness files hashed")
+    print(f"frozen at {frozen['commit'][:7]}; {len(frozen['hashes']['harness'])} harness and "
+          f"{len(frozen['hashes']['kilosort'])} KS4 files hashed")
 
 
 def verify():
@@ -93,8 +100,8 @@ def verify():
     frozen, now = json.loads(path('frozen').read_text())['hashes'], current_hashes()
     bad = [k for k in now if now[k] != frozen[k]]
     if bad:
-        detail = [f for f in set(now['harness']) | set(frozen['harness'])
-                  if now['harness'].get(f) != frozen['harness'].get(f)] if 'harness' in bad else []
+        detail = [f for k in ('harness', 'kilosort') if k in bad
+                  for f in set(now[k]) | set(frozen[k]) if now[k].get(f) != frozen[k].get(f)]
         raise SystemExit(f'hash mismatch, refusing to score: {bad} {detail}')
     return now
 

@@ -1,7 +1,9 @@
-# Search round 1: clustering resolution (draft)
+# Search round 1: clustering resolution
 
-Draft for discussion. Builds on [evaluation_spec.md](evaluation_spec.md) (v0.6), whose score, guards,
-information barrier and budget rules all apply unchanged except where this document says otherwise.
+Plan for round 1, frozen with spec v0.7. Builds on [evaluation_spec.md](evaluation_spec.md), whose
+score, guards, information barrier and budget rules all apply unchanged except where this document
+says otherwise. §2 records the preparation and its results; the levels in §3 were set from them
+before any run was scored.
 
 ## 1. Aim
 
@@ -31,8 +33,8 @@ All default to stock behaviour. Ported from `extra-settings` by hand onto the cu
 | `merge_correlation_threshold_1` | 0.9 | `postprocess_templates` | First-pass template merge: waveform correlation above this and norms within 20%. Higher = fewer merges. From `extra-settings`. |
 | `merge_correlation_threshold_2` | 0.5 | final `merging_function` | Final global merge: candidates need correlation above this and a cross-refractory CCG. Higher = fewer merges. Declared on `extra-settings` but not wired; wired here. |
 | `tree_connectivity_threshold` | 0.2 | `swarmsplitter.split` | New. The tree keeps a pair apart without further tests when its graph connectivity is below this multiple of chance (`tstat[:,0]`, hard-coded 0.2). Higher = more pairs kept apart. |
-| `cluster_init_clusters` | 200 | `clustering_qr.cluster` | New. Number of k-means++ seeds per clustering centre. Label propagation can only merge clusters, so this is a ceiling on clusters per centre. |
-| `cluster_resolution` | None | `clustering_qr.cluster` | New. None keeps the stock penalty (λ = 1, counting subset nodes, effectively inert). A number γ switches both assignment steps to the degree-weighted modularity penalty γ·kᵢ·K_c/m, where K_c is the summed degree of the cluster's nodes on the other side of the graph. γ = 1 is standard modularity; larger γ penalises big clusters more. |
+| `cluster_init_clusters` | 200 | `clustering_qr.cluster` | New. Number of k-means++ seeds per clustering centre. Label propagation can only merge clusters, so this is a ceiling on clusters per centre (in practice it doesn't bind, §2.3). |
+| `cluster_resolution` | None | `clustering_qr.cluster` | New. None keeps the stock penalty (λ = 1, counting subset nodes: a fixed tie-breaker, not a dial, §2.3). A number γ switches both assignment steps to the degree-weighted modularity penalty γ·kᵢ·K_c/m, where K_c is the summed degree of the cluster's nodes on the other side of the graph. γ = 1 is standard modularity; larger γ penalises big clusters more. |
 
 The GUI names copied wrongly on `extra-settings` are corrected in the port. The `standard` preset
 (`merge_bimodality_threshold` 0, `correlogram_shape_criterion` True,
@@ -44,6 +46,10 @@ A seed-1 sort of the hybrid excerpt with every new setting passed explicitly at 
 reproduce `hybrid_default_seed1` exactly: spike times, cluster labels, templates, amplitudes. This
 also covers the commits since the default replicates were made (`e28143c` → current HEAD, each
 claimed bit-identical). If it fails, the default replicates are re-run before freezing.
+
+**Result:** identical (`runs/check_port_seed1`, 3.9 min): spike times, clusters, templates,
+amplitudes, positions, whitening and KS labels all equal `hybrid_default_seed1`, so the five
+default replicates stand. Both diagnostic sorts (§2.3) are identical to it as well.
 
 `fast_matching` is fixed at False (exact path) and added to the fixed settings.
 
@@ -69,6 +75,41 @@ The diagnostic fixes the round 1 levels before any run is scored:
 - **`tree_connectivity_threshold`:** the 25th and 50th percentiles of connectivity among nodes the
   default tree merges.
 
+**Results** (`tuning/cluster_diagnostic.py`; `runs/round1_cluster_diagnostic.json` and
+`..._bimod0.json`; 48 centres, 24 per pass). Clusters summed over centres:
+
+| Variant | Pass 1 (spikes): after `cluster()` | after tree | Pass 2 (templates): after `cluster()` | after tree |
+|---|---|---|---|---|
+| stock (λ = 1) | 394 | 292 | 313 | 241 |
+| λ = 0 | −12% | −5% | −9% | −4% |
+| γ = 1 | +24% | −1% | +28% | +0% |
+| γ = 2 | +118% | −1% | +245% | −0% |
+| γ = 8 | +655% | +13% | +1030% | −3% |
+| `cluster_init_clusters` 400 | +1% | +0% | +2% | +0% |
+| `merge_bimodality_threshold` 0, stock clustering | | +35% | | +13% |
+| bimodality 0, γ = 1 | | +58% | | +22% |
+| bimodality 0, γ = 2 | | +147% | | +42% |
+| bimodality 0, γ = 4 | | +313% | | +109% |
+
+- **The merge tree sets the resolution, not the graph clustering.** At default bimodality the
+  tree re-merges almost everything extra the clustering produces, at any γ. With bimodality
+  merges off, γ passes through.
+- **The stock λ is a tie-breaker:** λ = 0 vs 1 changes post-tree counts by 4–5%; on synthetic
+  blobs λ = 1, 3 and 10 gave the same or nearly the same clustering.
+- **The 200 seeds never bind:** at most 29 clusters per centre survive `cluster()`, and 400
+  seeds change post-tree counts by 0–2%, also with γ = 1 (−3% to +3% against γ = 1 alone).
+- **Tree merges are few and large:** 17 merge decisions across the 48 centres (in pass 1 they
+  remove a quarter of the clusters). Connectivity at those decisions: 0.21–13.5, 25th/50th
+  percentiles 0.98 and 1.44. Of all tree nodes, 35% (pass 1) and 49% (pass 2) are below the stock
+  0.2 and are kept apart untested.
+
+**Levels set by the rules above:**
+- No γ reaches +15% after the tree at default bimodality, so γ is screened with
+  `merge_bimodality_threshold` 0, and its targets are relative to bimodality 0 alone (pooled over
+  both passes: γ = 1 gives +14%, γ = 2 +60%, γ = 4 +157%). Interpolated: **γ = 1.0, 1.35, 2.0**.
+- **`tree_connectivity_threshold` = 1.0 and 1.45.**
+- `cluster_init_clusters` is dropped from the screen: it has no effect to measure.
+
 ### 2.4 Spec v0.7 and freezing
 
 - §4 lists the new settings and `fast_matching = False`; §9 points to this document.
@@ -83,16 +124,15 @@ The diagnostic fixes the round 1 levels before any run is scored:
 | S1 | `standard` preset | — | as §2.1 | 1 |
 | S2 | `correlogram_shape_criterion` | False | True | 1 |
 | S3 | `merge_bimodality_threshold` | 0.6 | 0.4, 0.2, 0 | 3 |
-| S4 | `tree_connectivity_threshold` | 0.2 | two levels from §2.3 | 2 |
+| S4 | `tree_connectivity_threshold` | 0.2 | 1.0, 1.45 (§2.3) | 2 |
 | S5 | `merge_correlation_threshold_1` | 0.9 | 0.95, 0.975 | 2 |
 | S6 | `merge_correlation_threshold_2` | 0.5 | 0.7, 0.85 | 2 |
 | S7 | `ccg_threshold` | 0.25 | 0.15 | 1 |
 | S8 | `acg_threshold` | 0.2 | 0.1 (fewer units may seed global merges; KS4's own note suggests 0.1) | 1 |
-| S9 | `cluster_resolution` | None | three levels from §2.3 | 3 |
-| S10 | `cluster_init_clusters` | 200 | 400 | 1 |
-| S11 | `cluster_neighbors` | 10 | 5, 20 | 2 |
-| S12 | `cluster_downsampling` (+ `max_cluster_subset`) | 20 (25,000) | 10; 10 with 50,000 | 2 |
-| | | | **Total** | **21** |
+| S9 | `cluster_resolution`, with `merge_bimodality_threshold` 0 | None | 1.0, 1.35, 2.0 (§2.3); compared with S3's bimodality-0 run | 3 |
+| S10 | `cluster_neighbors` | 10 | 5, 20 | 2 |
+| S11 | `cluster_downsampling` (+ `max_cluster_subset`) | 20 (25,000) | 10; 10 with 50,000 | 2 |
+| | | | **Total** | **20** |
 
 `x_centers` is left out: the probe's columns span about 50 µm, so splitting clustering centres
 horizontally isn't expected to change resolution.
@@ -117,7 +157,7 @@ every guard, one further step in the same direction is run. At most 4 such runs.
 
 ## 5. Budget and running
 
-- Round 1 uses at most **45** of the 85 search runs: 21 screen, ≤ 4 extensions, ≤ 10
+- Round 1 uses at most **44** of the 85 search runs: 20 screen, ≤ 4 extensions, ≤ 10
   combinations, and replicates (2 per trigger, ≤ 10). The rest stay for round 2. The 15 reserved
   runs (§9.2–9.3) are untouched.
 - Runs go one at a time, about 5.5 minutes each (some clustering settings will be slower), so
@@ -140,6 +180,6 @@ Selection (§9.2) and ablation (§9.3) happen only after the last round.
 
 ## 7. Points for you
 
-- **Budget split:** 45 runs for round 1, 40 for later rounds.
+- **Budget split:** 44 runs for round 1, 41 for later rounds.
 
 Settled: G1's upper bound (1.25 × default) is dropped (spec v0.7), since more units is the aim.
