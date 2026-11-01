@@ -1,5 +1,6 @@
 from numba import njit
 import numpy as np
+from scipy.stats import norm
 import torch
 from torch.nn.functional import conv1d
 import math 
@@ -78,7 +79,7 @@ def CCG_metrics(st1, st2, K, T, nbins=None, tbin=None):
     return R12, Q12, Q00
 
 def check_CCG(st1, st2=None, nbins = 500, tbin  = 1/1000, acg_threshold=0.2,
-              ccg_threshold=0.25):
+              ccg_threshold=0.25, use_shape_criterion=False):
     # NOTE: The default `acg_threshold=0.2` is different from the value of 0.1
     #       used for the Kilosort4 paper. We felt this better reflects common
     #       practice for determining 'good' units, but you can set
@@ -89,6 +90,11 @@ def check_CCG(st1, st2=None, nbins = 500, tbin  = 1/1000, acg_threshold=0.2,
     R12, Q12, Q00 = CCG_metrics(st1, st2, K, T,  nbins = nbins, tbin = tbin)
     is_refractory    = R12<acg_threshold  and (Q12<.2)#  or Q00<.25)
     cross_refractory = R12<ccg_threshold and (Q12<.05)# or Q00<.25)
+    # Optional shape criterion (two different units only): a pair counts as
+    # refractory only if its CCG also has the shape of both ACGs.
+    if use_shape_criterion and (is_refractory or cross_refractory):
+        if not same_shape(st1, st2, K, nbins=nbins, tbin=tbin):
+            is_refractory, cross_refractory = False, False
     return is_refractory, cross_refractory, R12
 
 def similarity(Wall, W, nt=61):
@@ -123,3 +129,51 @@ def refract(iclust2, st0, acg_threshold=0.2, ccg_threshold=0.25):
                 )
 
     return is_refractory, R12
+
+
+SHAPE_THRESHOLD = 0.5
+
+def same_shape(st1, st2, K=None, nbins=500, tbin=1/1000):
+    """True if the CCG of st1 and st2 has the shape of both ACGs (Pearson r >
+    SHAPE_THRESHOLD, see CCG_ACG_similarity). Guards against merging units
+    whose CCG has a broad trough from anti-phase firing, not a refractory dip."""
+    r, _ = CCG_ACG_similarity(st1, st2, tbin=tbin, nbins=nbins, K=K)
+    return r > SHAPE_THRESHOLD
+
+def CCG_ACG_similarity(st1, st2, tbin = 1/1000, nbins = 500, max_lag=0.050, K=None):
+    """Similarity of the CCG's shape to each ACG's within +-max_lag: the smaller
+    of the two CCG_corr values. K is the CCG of st1 and st2 if already computed."""
+    if K is None:
+        K, _ = compute_CCG(st1, st2, tbin=tbin, nbins=nbins)
+    A1, _ = compute_CCG(st1, st1, tbin=tbin, nbins=nbins)
+    A2, _ = compute_CCG(st2, st2, tbin=tbin, nbins=nbins)
+    lags = np.arange(-nbins, nbins+1) * tbin
+
+    # compute_CCG() counts each spike against itself at lag 0; remove that
+    i0 = np.where(lags==0)
+    A1[i0] -= len(st1)
+    A2[i0] -= len(st2)
+
+    correlograms = {'CCG': K, 'ACG1': A1, 'ACG2': A2, 'lags': lags}
+    similarity = np.min((CCG_corr(lags, K, A1, max_lag), CCG_corr(lags, K, A2, max_lag)))
+    return similarity, correlograms
+
+def CCG_corr(T, C1, C2, max_lag):
+    """Pearson r between two smoothed correlograms (Gaussian, SD 4 bins) on each
+    side of zero lag within +-max_lag; the larger of the two sides."""
+    TOL = 1e-6 # numerical tolerance to prevent rounding errors
+
+    x = np.arange(-10, 11)
+    f = norm.pdf(x, loc=0, scale=4)
+    f = f / np.sum(f)
+    C1 = np.convolve(C1, f, mode='same')
+    C2 = np.convolve(C2, f, mode='same')
+
+    viR = np.abs(T) <= (max_lag + TOL)
+    vleft = viR & (T < 0)
+    vright = viR & (T > 0)
+
+    # Too few points on a side gives r = 0 for that side
+    r_l = np.corrcoef(C1[vleft], C2[vleft])[0, 1] if np.sum(vleft) > 1 else 0.0
+    r_r = np.corrcoef(C1[vright], C2[vright])[0, 1] if np.sum(vright) > 1 else 0.0
+    return max(r_l, r_r)

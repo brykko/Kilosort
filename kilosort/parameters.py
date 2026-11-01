@@ -468,6 +468,94 @@ EXTRA_PARAMETERS = {
             """
     },
 
+    'cluster_init_clusters': {
+        'gui_name': 'cluster init clusters', 'type': int, 'min': 1, 'max': np.inf,
+        'exclude': [], 'default': 200, 'step': 'clustering',
+        'description':
+            """
+            Number of clusters that kmeans++ seeds in each clustering center
+            before graph clustering. The graph clustering can only merge these,
+            so this is the most clusters a center can produce before the merge
+            tree. Was hard-coded to 200.
+            """
+    },
+
+    'cluster_resolution': {
+        'gui_name': 'cluster resolution', 'type': float, 'min': 0, 'max': np.inf,
+        'exclude': [], 'default': None, 'step': 'clustering',
+        'description':
+            """
+            Resolution of the graph clustering. None keeps the original penalty
+            on large clusters (lambda = 1, counting nodes), which is too weak to
+            change most assignments. A number switches to the degree-weighted
+            modularity penalty with this resolution: 1 is standard modularity,
+            larger values split the data into more, smaller clusters.
+            """
+    },
+
+    'tree_connectivity_threshold': {
+        'gui_name': 'tree connectivity threshold', 'type': float, 'min': 0,
+        'max': np.inf, 'exclude': [], 'default': 0.2, 'step': 'clustering',
+        'description':
+            """
+            The merge tree keeps two groups of clusters apart, without testing
+            them further, when their graph connectivity is below this multiple
+            of chance. Higher values keep more groups apart. Was hard-coded
+            to 0.2.
+            """
+    },
+
+    'merge_bimodality_threshold': {
+        'gui_name': 'merge bimodality threshold', 'type': float, 'min': 0,
+        'max': 1, 'exclude': [], 'default': 0.6, 'step': 'clustering',
+        'description':
+            """
+            The merge tree merges two groups of clusters unless their features
+            project bimodally, with a bimodality score at or above this value.
+            0 prevents these merges; 1 accepts all of them. Has a large effect
+            on the number of clusters. Was hard-coded to 0.6.
+            """
+    },
+
+    'merge_correlation_threshold_1': {
+        'gui_name': 'merge correlation threshold 1', 'type': float, 'min': 0,
+        'max': 1, 'exclude': [0], 'default': 0.9, 'step': 'clustering',
+        'description':
+            """
+            First global merge (after the first clustering pass): templates
+            whose waveform correlation exceeds this value and whose norms
+            differ by less than 20% are merged. There is no correlogram test at
+            this step, so most candidate pairs merge. Higher values give more
+            units. Was hard-coded to 0.9.
+            """
+    },
+
+    'merge_correlation_threshold_2': {
+        'gui_name': 'merge correlation threshold 2', 'type': float, 'min': 0,
+        'max': 1, 'exclude': [0], 'default': 0.5, 'step': 'clustering',
+        'description':
+            """
+            Final global merge: templates whose waveform correlation exceeds
+            this value are merged if their cross-correlogram is refractory
+            (see `ccg_threshold`). Higher values give more units. Was
+            hard-coded to 0.5.
+            """
+    },
+
+    'correlogram_shape_criterion': {
+        'gui_name': 'correlogram shape criterion', 'type': bool, 'min': None,
+        'max': None, 'exclude': [], 'default': False, 'step': 'clustering',
+        'description':
+            """
+            If True, a pair of units only counts as cross-refractory (for the
+            merge tree and the final merge) if their cross-correlogram also has
+            the shape of both autocorrelograms (Pearson r > 0.5 within 50 ms).
+            Guards against merging units whose cross-correlogram has a broad
+            trough from anti-phase firing (common for grid and head-direction
+            cells) rather than a refractory dip.
+            """
+    },
+
     'random_seed': {
         'gui_name': 'random seed', 'type': int, 'min': 0, 'max': np.inf,
         'exclude': [], 'default': 1, 'step': 'clustering',
@@ -568,3 +656,23 @@ def compare_settings(settings):
         else:
             extra_keys.append(k)
     return modified_settings, extra_keys
+
+
+def get_preset(name):
+    """Named sets of settings, to be combined with other settings:
+    `settings = {**get_preset('standard'), ...}`.
+
+    'original': no changes from the defaults.
+    'standard': finer clustering, for dense recordings such as MEC. Disables
+        the merge tree's bimodality merges (a refractory cross-correlogram is
+        still merged, later, by the final merge), requires cross-correlograms
+        to have the shape of the autocorrelograms before a merge, and makes
+        the first global merge accept only very similar templates.
+    """
+    if name == 'original':
+        return {}
+    if name == 'standard':
+        return {'merge_bimodality_threshold': 0,
+                'correlogram_shape_criterion': True,
+                'merge_correlation_threshold_1': 0.975}
+    raise ValueError(f'{name} is not a valid preset name')

@@ -1,7 +1,7 @@
 import numpy as np
 from numba import njit
 import math
-from kilosort.CCG import compute_CCG, CCG_metrics
+from kilosort.CCG import compute_CCG, CCG_metrics, same_shape
 
 def count_elements(kk, iclust, my_clus, xtree):
     n1 = np.isin(iclust, my_clus[xtree[kk, 0]]).sum()
@@ -50,7 +50,7 @@ def bimod_score(xproj):
     score = 1 - np.maximum(xmin/xm1, xmin/xm2)
     return score
 
-def check_CCG(st1, st2=None, nbins = 500, tbin  = 1/1000):
+def check_CCG(st1, st2=None, nbins = 500, tbin  = 1/1000, use_shape_criterion=False):
     if st2 is None:
         st2 = st1.copy()
     # Empty trains must be checked before compute_CCG (it calls .max() on
@@ -65,12 +65,16 @@ def check_CCG(st1, st2=None, nbins = 500, tbin  = 1/1000):
     R12, Q12, Q00 = CCG_metrics(st1, st2, K, T,  nbins = nbins, tbin = tbin)
     is_refractory    = R12<.1  and (Q12<.2  or Q00<.25)
     cross_refractory = R12<.25 and (Q12<.05 or Q00<.25)
+    # Optional shape criterion (CCG.same_shape); st1, st2 from different units
+    if use_shape_criterion and (is_refractory or cross_refractory):
+        if not same_shape(st1, st2, K, nbins=nbins, tbin=tbin):
+            is_refractory, cross_refractory = False, False
     return is_refractory, cross_refractory
 
-def refractoriness(st1, st2):
+def refractoriness(st1, st2, use_shape_criterion=False):
     # compute goodness of st1, st2, and both
 
-    is_refractory = check_CCG(st1, st2)[1]
+    is_refractory = check_CCG(st1, st2, use_shape_criterion=use_shape_criterion)[1]
     if is_refractory:
         criterion = 1 # never split
         #print('this is refractory')
@@ -85,7 +89,14 @@ def refractoriness(st1, st2):
         #    print('good cluster becomes bad')
     return criterion
 
-def split(Xd, xtree, tstat, iclust, my_clus, verbose = True, meta = None):
+def split(Xd, xtree, tstat, iclust, my_clus, verbose = True, meta = None,
+          bimodality_threshold=0.6, connectivity_threshold=0.2,
+          use_shape_criterion=False):
+    # Walks the merge tree from the root. At each node the two sides are kept
+    # apart (criterion -1) if their graph connectivity is below
+    # connectivity_threshold, merged (criterion 1) if their spike trains are
+    # cross-refractory (template pass only), else merged unless their features
+    # project bimodally (score >= bimodality_threshold).
     xtree = np.array(xtree)
 
     kk = xtree.shape[0]-1
@@ -104,20 +115,21 @@ def split(Xd, xtree, tstat, iclust, my_clus, verbose = True, meta = None):
         score = np.nan
         if criterion==0:
             # first mutation is global modularity
-            if tstat[kk,0] < 0.2:
+            if tstat[kk,0] < connectivity_threshold:
                 criterion = -1
 
 
         if meta is not None and criterion==0:
             # second mutation is based on meta_data
-            criterion = refractoriness(meta[ix1],meta[ix2])
+            criterion = refractoriness(meta[ix1], meta[ix2],
+                                       use_shape_criterion=use_shape_criterion)
             #criterion = 0
         
         if criterion==0:
             xproj, score = check_split(Xd, kk, xtree, iclust, my_clus)
             # third mutation is bimodality
             #xproj, score = check_split(Xd, kk, xtree, iclust, my_clus)
-            criterion = 2 * (score <  .6) - 1
+            criterion = 2 * (score < bimodality_threshold) - 1
 
         if criterion==0:
             # fourth mutation is local modularity (not reachable)

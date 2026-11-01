@@ -66,7 +66,10 @@ def neigh_mat(Xd, nskip=1, n_neigh=10, max_sub=25000):
     return kn, M
 
 
-def assign_iclust(rows_neigh, isub, kn, tones2, nclust, lam, m, ki, kj, device=torch.device('cuda')):
+def assign_iclust(rows_neigh, isub, kn, tones2, nclust, lam, m, ki, kj, device=torch.device('cuda'),
+                  weighted=False):
+    # weighted: penalise each cluster by its subset nodes' summed degree
+    # (modularity), instead of by their number (stock)
     n_spikes = kn.shape[0]
 
     ij = torch.vstack((rows_neigh.flatten(), isub[kn].flatten()))
@@ -74,7 +77,7 @@ def assign_iclust(rows_neigh, isub, kn, tones2, nclust, lam, m, ki, kj, device=t
     xN = xN.to_dense()
 
     if lam > 0:
-        tones = torch.ones(len(kj), device = device)
+        tones = kj if weighted else torch.ones(len(kj), device = device)
         tzeros = torch.zeros(len(kj), device = device)
         ij = torch.vstack((tzeros, isub))    
         kN = coo(ij, tones, (1, nclust))
@@ -86,7 +89,8 @@ def assign_iclust(rows_neigh, isub, kn, tones2, nclust, lam, m, ki, kj, device=t
     return iclust
 
 
-def assign_isub(iclust, kn, tones2, nclust, nsub, lam, m,ki,kj, device=torch.device('cuda')):
+def assign_isub(iclust, kn, tones2, nclust, nsub, lam, m,ki,kj, device=torch.device('cuda'),
+                weighted=False):
     n_neigh = kn.shape[1]
     cols = iclust.unsqueeze(-1).tile((1, n_neigh))
     iis = torch.vstack((kn.flatten(), cols.flatten()))
@@ -95,7 +99,7 @@ def assign_isub(iclust, kn, tones2, nclust, nsub, lam, m,ki,kj, device=torch.dev
     xS = xS.to_dense()
 
     if lam > 0:
-        tones = torch.ones(len(ki), device = device)
+        tones = ki if weighted else torch.ones(len(ki), device = device)
         tzeros = torch.zeros(len(ki), device = device)
         ij = torch.vstack((tzeros, iclust))    
         kN = coo(ij, tones, (1, nclust))
@@ -120,7 +124,16 @@ def Mstats(M, device=torch.device('cuda')):
 
 def cluster(Xd, iclust=None, kn=None, nskip=1, n_neigh=10, max_sub=25000,
             nclust=200, seed=1, niter=200, lam=0, device=torch.device('cuda'),
-            verbose=False):    
+            verbose=False, resolution=None):
+    # resolution: if given, replaces lam and switches both assignment steps to
+    # the degree-weighted (modularity) penalty resolution * k_i * K_c / m, where
+    # K_c is the summed degree of cluster c's nodes on the other side of the
+    # graph. The stock penalty (lam, counting nodes) is about n_neigh times
+    # weaker per spike, and weaker still on the spike side when the subset is
+    # small, so at lam = 1 it barely changes any assignment.
+    weighted = resolution is not None
+    if weighted:
+        lam = resolution
 
     if kn is None:
         # kn: n_spikes by n_neigh with integer indices into the spike subset
@@ -161,10 +174,10 @@ def cluster(Xd, iclust=None, kn=None, nskip=1, n_neigh=10, max_sub=25000,
     for t in range(niter):
         # given iclust, reassign isub
         isub = assign_isub(iclust, kn, tones2, nclust, nsub, lam, m,
-                           ki, kj,device=device)
+                           ki, kj,device=device, weighted=weighted)
         # given mu and isub, reassign iclust
         iclust_new = assign_iclust(rows_neigh, isub, kn, tones2, nclust, lam, m,
-                                   ki, kj, device=device)
+                                   ki, kj, device=device, weighted=weighted)
         # Each iteration is a deterministic function of iclust alone, so once
         # an iteration returns the same assignment every later one would too.
         if torch.equal(iclust_new, iclust):
@@ -177,7 +190,8 @@ def cluster(Xd, iclust=None, kn=None, nskip=1, n_neigh=10, max_sub=25000,
     
     _, iclust = torch.unique(iclust, return_inverse=True)    
     nclust = iclust.max() + 1
-    isub = assign_isub(iclust, kn, tones2, nclust , nsub, lam, m,ki,kj, device=device)
+    isub = assign_isub(iclust, kn, tones2, nclust , nsub, lam, m,ki,kj, device=device,
+                       weighted=weighted)
 
     iclust = iclust.cpu().numpy()
     isub = isub.cpu().numpy()
@@ -444,6 +458,11 @@ def run(ops, st, tF, mode='template', device=torch.device('cuda'),
     nskip = ops['settings']['cluster_downsampling']
     n_neigh = ops['settings']['cluster_neighbors']
     max_sub = ops['settings']['max_cluster_subset']
+    nclust = ops['settings']['cluster_init_clusters']
+    resolution = ops['settings']['cluster_resolution']
+    bimodality_threshold = ops['settings']['merge_bimodality_threshold']
+    connectivity_threshold = ops['settings']['tree_connectivity_threshold']
+    use_shape_criterion = ops['settings']['correlogram_shape_criterion']
     seed = ops['settings']['cluster_init_seed']
     ycent = y_centers(ops)
     xcent = x_centers(ops)
@@ -508,7 +527,8 @@ def run(ops, st, tF, mode='template', device=torch.device('cuda'),
                     # find new clusters
                     iclust, iclust0, M, _ = cluster(
                         Xd, nskip=nskip, n_neigh=n_neigh, max_sub=max_sub,
-                        lam=1, seed=seed, device=device, verbose=v
+                        nclust=nclust, lam=1, resolution=resolution,
+                        seed=seed, device=device, verbose=v
                         )
 
                     if clear_cache:
@@ -522,7 +542,10 @@ def run(ops, st, tF, mode='template', device=torch.device('cuda'),
                     xtree, tstat, my_clus = hierarchical.maketree(M, iclust, iclust0)
 
                     xtree, tstat = swarmsplitter.split(
-                        Xd.numpy(), xtree, tstat,iclust, my_clus, meta=st0
+                        Xd.numpy(), xtree, tstat,iclust, my_clus, meta=st0,
+                        bimodality_threshold=bimodality_threshold,
+                        connectivity_threshold=connectivity_threshold,
+                        use_shape_criterion=use_shape_criterion
                         )
 
                     iclust = swarmsplitter.new_clusters(iclust, my_clus, xtree, tstat)

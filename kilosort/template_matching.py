@@ -144,9 +144,12 @@ def align_U(U, ops, device=torch.device('cuda')):
 def postprocess_templates(Wall, ops, clu, st, tF, device=torch.device('cuda')):
     Wall2, _ = align_U(Wall, ops, device=device)
     #Wall3, _= remove_duplicates(ops, Wall2)
+    # First-pass merge: template correlation above merge_correlation_threshold_1
+    # and norms within 20% ('mu' mode, no correlograms)
     Wall3, _, _, _, _ = merging_function(
         ops, Wall2.transpose(1,2), clu, st, tF,
-        0.9, 'mu', check_dt=False, device=device
+        ops['settings']['merge_correlation_threshold_1'], 'mu', check_dt=False,
+        device=device
         )
     Wall3 = Wall3.transpose(1,2).to(device)
     return Wall3
@@ -333,6 +336,7 @@ def merging_function(ops, Wall, clu, st, tF, r_thresh=0.5, mode='ccg', check_dt=
 
     acg_threshold = ops['settings']['acg_threshold']
     ccg_threshold = ops['settings']['ccg_threshold']
+    use_shape_criterion = ops['settings']['correlogram_shape_criterion']
     if mode == 'ccg':
         is_ref, est_contam_rate = CCG.refract(clu, st[:,0]/ops['fs'],
                                               acg_threshold=acg_threshold,
@@ -390,7 +394,8 @@ def merging_function(ops, Wall, clu, st, tF, r_thresh=0.5, mode='ccg', check_dt=
             if mode == 'ccg':
                 st1 = st[members[jj],0] / ops['fs']
                 _, is_ccg, _ = CCG.check_CCG(st0, st1, acg_threshold=acg_threshold,
-                                             ccg_threshold=ccg_threshold)        
+                                             ccg_threshold=ccg_threshold,
+                                             use_shape_criterion=use_shape_criterion)
             else:
                 dmu = 2 * (mu[kk] - mu[jj]) / (mu[kk] + mu[jj])
                 is_ccg = dmu.abs() < 0.2
