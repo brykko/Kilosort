@@ -1,6 +1,6 @@
 # Search round 1: clustering resolution
 
-Plan for round 1, frozen with spec v0.7. Builds on [evaluation_spec.md](evaluation_spec.md), whose
+Plan for round 1, frozen with spec v0.7 (leader rule amended in v0.8). Builds on [evaluation_spec.md](evaluation_spec.md), whose
 score, guards, information barrier and budget rules all apply unchanged except where this document
 says otherwise. §2 records the preparation and its results; the levels in §3 were set from them
 before any run was scored.
@@ -144,7 +144,8 @@ every guard, one further step in the same direction is run. At most 4 such runs.
 
 - **Leader:** the best configuration replicated on 3 seeds (seed 1 plus 2 and 3), starting with
   default. A configuration becomes leader if its 3-seed mean ΔS exceeds the current leader's by
-  ≥ δ/2, it passes every guard on every replicate, and its mean ΔS over default is ≥ δ (§5.4).
+  ≥ δ/2, it passes every guard on every replicate, its mean ΔS over default is ≥ δ, and its mean
+  ΔS_track over default is ≥ δ_track/2 = 7.7 bits/s (§5.4; added in spec v0.8, after run 023).
 - **Replication trigger:** a single run is replicated when its ΔS exceeds the leader's mean by
   ≥ δ/2 and it passes every guard. This applies §9.1 to round 1: single runs never become leader.
 - **Carried forward:** each setting's best screen level, if it gained ≥ δ/2 over default and

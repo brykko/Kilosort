@@ -1,8 +1,13 @@
 # Kilosort 4 settings search: evaluation spec
 
-**Status:** v0.7, frozen for search round 1 (commit and hashes in `runs/frozen.json` and the first search-log record). Items marked **[DECIDE]** need your call; items marked **[PHASE 0]** are numbers set by the validation runs and then frozen.
+**Status:** v0.8, frozen for search round 1 (commit and hashes in `runs/frozen.json` and the latest `freeze` record in the search log). Items marked **[DECIDE]** need your call; items marked **[PHASE 0]** are numbers set by the validation runs and then frozen.
 
 **Freezing:** the spec is frozen when (1) every [DECIDE] item is settled, (2) Phase 0 has passed and its [PHASE 0] numbers are filled in, and (3) the spec and the evaluation harness are committed together, with the commit hash and the SHA-256 of every harness file recorded at the top of the search log. Any later change gets a new version number and a log entry stating what changed and why. A change to the score, guards or thresholds after the search has started invalidates comparisons made under the old version, and those candidates must be re-scored.
+
+### Changes in v0.8
+
+- **Tracked heading is a second condition for improving** (§5.4, §9.2): a candidate must also raise S_track, by a mean of ≥ δ_track/2 = σ_track (7.7 bits/s) over its replicates. θ_ref is built from a default sort, so S alone could favour settings that resemble the reference sort's; tracked heading carries no such link. In the round 1 screen the two agreed closely (r = 0.995 over 22 runs, ΔS_track ≈ 0.85 ΔS, the ratio of their levels), so the condition is a safeguard, not a change of direction. Half of δ_track rather than all of it, because a good sort is expected to decode internal direction better than tracked heading. Adopted after 23 round 1 runs; every run's S_track was already logged, so nothing is re-scored.
+- **Re-freezing** (§11): `run_candidate.py refreeze --reason ...` appends a new `freeze` record to the search log after a spec change.
 
 ### Changes in v0.7
 
@@ -152,7 +157,8 @@ All comparisons are paired on the same excerpt: ΔS = S_candidate − S_default.
 
 - σ_S: SD of S across ≥ 5 default replicates with different seeds; 8.0 bits/s (§8.1), so δ = 16.0 bits/s.
 - δ = max(δ_practical, 2σ_S), with δ_practical = 1% of default S.
-- A candidate *improves* if mean ΔS ≥ δ over its replicates and every guard passes.
+- σ_track: SD of S_track across the same replicates; 7.7 bits/s, so δ_track = 2σ_track = 15.3 bits/s.
+- A candidate *improves* if mean ΔS ≥ δ over its replicates, mean ΔS_track ≥ δ_track/2, and every guard passes.
 
 Median decoding error (degrees) is reported for every evaluation but never used for decisions.
 
@@ -299,7 +305,7 @@ Not counted in the search budget. The search may not start until every item pass
 - A run that improves on default (§5.4, single replicate) and passes all guards gets 2 further seed replicates before it can be the leader.
 
 ### 9.2 Selection
-- Winner: highest mean ΔS over ≥ 3 replicates among candidates passing all guards on every replicate.
+- Winner: highest mean ΔS over ≥ 3 replicates among candidates passing all guards on every replicate and with mean ΔS_track ≥ δ_track/2 (§5.4).
 - The best of ~100 runs beats default by ~2–2.5σ by chance alone, which is why single runs never decide.
 
 ### 9.3 Ablation
@@ -325,6 +331,8 @@ One record per run, written before results are read where possible:
 - rationale for the run (one line, from the optimising agent);
 - S, ΔS, S_track, C, all guards with values and pass/fail, unit counts, cleaning statistics, hybrid recovery, runtime;
 - any deviation from this spec.
+
+A spec change during the search gets a new version and a new `freeze` record (reason, commit, hashes) appended to the log; later runs are checked against the latest one.
 
 ## 12. Known limitations
 

@@ -61,7 +61,9 @@ run them.
 2. Each evaluation:
    `python run_candidate.py run --name <short_name> --settings '<json>' --seed 1 --rationale "<one line>"`
    Phases: `search` (default), `replicate` (seeds 2, 3 of a promising run), `ablation`, `test`.
-3. The optimising agent reads only `summary.json` and the log's `result` records (§3). Per-unit
+3. After a spec change during the search: commit, then
+   `python run_candidate.py refreeze --reason "spec v0.x: ..."` (appends a new `freeze` record).
+4. The optimising agent reads only `summary.json` and the log's `result` records (§3). Per-unit
    scores are in each sort's `evaluation.json` and are not read during the search.
 
 A run takes about 4.5 minutes of GPU for the sort and under a minute for the harness. 100 runs, of

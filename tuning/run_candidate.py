@@ -16,6 +16,10 @@ default, log.
         statistics, runtime. Per-unit scores stay in the run folder's evaluation.json, which the
         optimising agent does not read.
 
+    python run_candidate.py refreeze --reason "spec v0.8: ..."
+        After a spec or harness change during the search: same checks and hashes as freeze, appended
+        to the existing log as a new 'freeze' record with the reason. Later runs verify against it.
+
 Options: --phase (search, replicate, ablation, test), --existing-sort FOLDER (re-score an existing sort
 instead of sorting; used for tests and for re-scoring after a spec change), --unfrozen (skip the hash
 check; test phase only, logged to the separate test log so the search log stays clean).
@@ -82,12 +86,17 @@ def git(*a):
     return subprocess.run(['git', '-C', str(HERE.parent), *a], capture_output=True, text=True, check=True).stdout
 
 
-def freeze():
-    if path('log').exists():
-        raise SystemExit(f"{path('log')} already exists; the search log is append-only")
+def freeze(reason=None):
+    """reason=None: first freeze, no log yet. Otherwise a re-freeze appended to the existing log."""
+    if reason is None and path('log').exists():
+        raise SystemExit(f"{path('log')} already exists; the search log is append-only (use refreeze)")
+    if reason is not None and not path('log').exists():
+        raise SystemExit('no search log yet; use freeze')
     if git('status', '--porcelain', '--', 'tuning', 'kilosort').strip():
         raise SystemExit('tuning/ or kilosort/ has uncommitted changes; commit before freezing')
     frozen = {'commit': git('rev-parse', 'HEAD').strip(), 'hashes': current_hashes()}
+    if reason is not None:
+        frozen['reason'] = reason
     path('frozen').write_text(json.dumps(frozen, indent=2))
     log({'type': 'freeze', **frozen})
     print(f"frozen at {frozen['commit'][:7]}; {len(frozen['hashes']['harness'])} harness and "
@@ -109,7 +118,9 @@ def verify():
 def visible_summary(ev, cmp):
     """What the optimising agent may see (§3)."""
     return {
-        'S': ev['S'], 'dS': cmp['dS'], 'S_default': cmp['S_default'], 'S_track': ev['S_track'], 'C': ev['C'],
+        'S': ev['S'], 'dS': cmp['dS'], 'S_default': cmp['S_default'], 'S_track': ev['S_track'],
+        'dS_track': ev['S_track'] - next(g['default'] for g in cmp['guards'] if g['guard'].startswith('G2')),
+        'C': ev['C'],
         'guards': [{k: g[k] for k in ('guard', 'candidate', 'default', 'tau', 'status')} for g in cmp['guards']],
         'all_guards_pass': all(g['status'] == 'pass' for g in cmp['guards']),
         'n_units': ev['n_units'], 'n_eligible': ev['n_eligible'], 'n_noise_units': ev['n_noise_units'],
@@ -178,6 +189,8 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest='cmd', required=True)
     sub.add_parser('freeze')
+    rf = sub.add_parser('refreeze')
+    rf.add_argument('--reason', required=True)
     r = sub.add_parser('run')
     r.add_argument('--name', required=True)
     r.add_argument('--settings', default='{}')
@@ -187,4 +200,7 @@ if __name__ == '__main__':
     r.add_argument('--existing-sort')
     r.add_argument('--unfrozen', action='store_true')
     args = p.parse_args()
-    freeze() if args.cmd == 'freeze' else run(args)
+    if args.cmd == 'run':
+        run(args)
+    else:
+        freeze(args.reason if args.cmd == 'refreeze' else None)
