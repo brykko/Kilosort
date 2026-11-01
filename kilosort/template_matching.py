@@ -155,19 +155,50 @@ def postprocess_templates(Wall, ops, clu, st, tF, device=torch.device('cuda')):
     return Wall3
 
 
+CTC_BLOCK = 256   # templates per block when computing ctc
+
+
 def prepare_matching(ops, U):
+    """Cross-correlations ctc[u, y, :] between templates u and y at each lag, stored sparsely:
+    only templates u whose column for y is non-zero (their channels overlap y's), as
+    {'ptr': (n_templates + 1,), 'rows': (nnz,), 'vals': (nnz, 2*nt + 1), 'kmax': int}; the
+    entries of y are rows[ptr[y]:ptr[y+1]] (ascending) and vals[ptr[y]:ptr[y+1]].
+    The dense array has n_templates**2 * (2*nt + 1) entries, mostly exact zeros, and outgrows GPU
+    memory with a few thousand templates. Blocks of rows are computed with the same einsums as the
+    dense array, which gives the same values bit for bit."""
     nt = ops['nt']
     W = ops['wPCA'].contiguous()
-    WtW = conv1d(W.reshape(-1, 1,nt), W.reshape(-1, 1 ,nt), padding = nt) 
+    WtW = conv1d(W.reshape(-1, 1,nt), W.reshape(-1, 1 ,nt), padding = nt)
     WtW = torch.flip(WtW, [2,])
 
     #mu = (U**2).sum(-1).sum(-1)**.5
     #U2 = U / mu.unsqueeze(-1).unsqueeze(-1)
 
-    UtU = torch.einsum('ikl, jml -> ijkm',  U, U)
-    ctc = torch.einsum('ijkm, kml -> ijl', UtU, WtW)
+    n = U.shape[0]
+    ys, us, vals = [], [], []
+    for a in range(0, n, CTC_BLOCK):
+        UtU = torch.einsum('ikl, jml -> ijkm',  U[a:a+CTC_BLOCK], U)
+        ctc = torch.einsum('ijkm, kml -> ijl', UtU, WtW)
+        u, y = torch.nonzero((ctc != 0).any(-1), as_tuple=True)
+        ys.append(y); us.append(u + a); vals.append(ctc[u, y])
+        del UtU, ctc
+    y, u, vals = torch.cat(ys), torch.cat(us), torch.cat(vals)
+    order = torch.sort(y, stable=True)[1]          # by column; rows stay ascending within one
+    counts = torch.bincount(y, minlength=n)
+    ptr = torch.zeros(n + 1, dtype=torch.int64, device=U.device)
+    ptr[1:] = torch.cumsum(counts, 0)
+    return {'ptr': ptr, 'rows': u[order].contiguous(), 'vals': vals[order].contiguous(),
+            'kmax': int(counts.max()) if n else 0}
 
-    return ctc
+
+def _bupdate(B, ctc, iX, iY, amp, trange):
+    """B[:, iX + trange] -= amp * ctc[:, iY, :] with the sparse ctc: only the non-zero entries,
+    with the same rounded multiply and subtract per element."""
+    lo, hi = ctc['ptr'][iY], ctc['ptr'][iY + 1]
+    cnt = hi - lo
+    s = torch.repeat_interleave(torch.arange(len(iY), device=B.device), cnt)
+    e = lo[s] + torch.arange(int(cnt.sum()), device=B.device) - (torch.cumsum(cnt, 0) - cnt)[s]
+    B[ctc['rows'][e].unsqueeze(-1), iX[s].unsqueeze(-1) + trange] -= amp[s] * ctc['vals'][e]
 
 
 def run_matching(ops, X, U, ctc, device=torch.device('cuda')):
@@ -206,7 +237,7 @@ def run_matching(ops, X, U, ctc, device=torch.device('cuda')):
 
     if cuda_kernels.available(device):
         fast = ops['settings'].get('fast_matching', False)
-        k = _peel_fused(B.contiguous(), nm.contiguous(), ctc.contiguous(), U.contiguous(),
+        k = _peel_fused(B.contiguous(), nm.contiguous(), ctc, U.contiguous(),
                         W, Xres, Cfmax, imax, st, amps, th_amps, Th, nt, max_peels, fast)
         if k is not None:
             return st[:k], amps[:k], th_amps[:k], Xres
@@ -250,7 +281,7 @@ def run_matching(ops, X, U, ctc, device=torch.device('cuda')):
             n += 1
         for j in range(n):
             Xres[:, iX[j::n] + tiwave]  -= amp[j::n] * torch.einsum('ijk, jl -> kil', U[iY[j::n,0]], W)
-            B[   :, iX[j::n] + trange]  -= amp[j::n] * ctc[:,iY[j::n,0],:]
+            _bupdate(B, ctc, iX[j::n, 0], iY[j::n, 0], amp[j::n], trange)
 
         cols = torch.unique(iX + trange)
         cols = cols[(cols >= nt) & (cols < NT - nt)]

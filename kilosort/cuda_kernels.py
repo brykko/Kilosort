@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 _name = 'kilosort_kernels.dll' if sys.platform == 'win32' else 'libkilosort_kernels.so'
 LIBRARY_PATH = Path(__file__).parent / 'cuda' / _name
-KERNELS_VERSION = 2   # must match ks_version() in kilosort_kernels.cu
+KERNELS_VERSION = 3   # must match ks_version() in kilosort_kernels.cu
 _lib = None
 _loaded = False
 
@@ -48,7 +48,7 @@ def _load():
     lib.ks_matching_record.argtypes = [vp]*5 + [ci]*3 + [vp]*4
     lib.ks_matching_xres.argtypes = [vp]*4 + [ci]*5
     lib.ks_matching_xres_fast.argtypes = [vp]*6 + [ci]*6
-    lib.ks_matching_bupdate.argtypes = [vp]*5 + [ci]*5
+    lib.ks_matching_bupdate.argtypes = [vp]*7 + [ci]*5
     lib.ks_matching_colmax.argtypes = [vp]*3 + [ci]*4 + [vp]*2
     _lib = lib
     logger.info(f'Using fused CUDA kernels from {LIBRARY_PATH}')
@@ -127,11 +127,13 @@ def matching_xres_fast(Xres, U, W, iX, iY, amp):
 
 
 def matching_bupdate(B, ctc, iX, iY, amp, nt):
-    """B[:, iX + trange] -= amp * ctc[:, iY, :] for spikes whose windows don't overlap."""
+    """B[:, iX + trange] -= amp * ctc[:, iY, :] for spikes whose windows don't overlap, with ctc
+    in the sparse form of template_matching.prepare_matching."""
     assert iX.stride(0) == iY.stride(0) == amp.stride(0)
     err = _lib.ks_matching_bupdate(
-        B.data_ptr(), ctc.data_ptr(), iX.data_ptr(), iY.data_ptr(), amp.data_ptr(),
-        len(iX), iX.stride(0), B.shape[0], B.shape[1], int(nt)
+        B.data_ptr(), ctc['ptr'].data_ptr(), ctc['rows'].data_ptr(), ctc['vals'].data_ptr(),
+        iX.data_ptr(), iY.data_ptr(), amp.data_ptr(), len(iX), iX.stride(0), ctc['kmax'],
+        B.shape[1], int(nt)
         )
     return _check(err, 'ks_matching_bupdate')
 

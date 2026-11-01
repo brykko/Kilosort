@@ -13,7 +13,7 @@
 #endif
 
 // Bump when an exported signature changes; must match KERNELS_VERSION in cuda_kernels.py.
-EXPORT int ks_version() { return 2; }
+EXPORT int ks_version() { return 3; }
 
 #define TPB 256
 #define MAXNC 32
@@ -150,7 +150,9 @@ EXPORT int ks_template_match(const float* B, const int64_t* iC, const float* w, 
 //          th_amps[i] = sqrt(Cmax[x]); iY[i] = y.
 // xres:    Xres[c, iX[i] + t - nt/2] -= amp[i] * E[c, i, t] (rounded multiply, rounded subtract),
 //          with E = einsum('ijk, jl -> kil', U[iY], W) from cuBLAS (exact path).
-// bupdate: B[u, iX[i] + d - nt] -= amp[i] * ctc[u, iY[i], d] for d in [0, 2nt], all units u.
+// bupdate: B[u, iX[i] + d - nt] -= amp[i] * ctc[u, iY[i], d] for d in [0, 2nt], over the units u
+//          whose ctc column for iY[i] is non-zero (CSC: rows[ptr[y]..ptr[y+1]), vals[e, d]); the
+//          other units' entries are exact zeros and would leave B unchanged.
 // colmax:  for each column c within nt of a peak (skipping the zeroed edges), over units u:
 //          Cf = relu(B[u,c])^2 / nm[u]; Cfmax[c] = max_u Cf, imax[c] = first argmax.
 //          Overlapping windows make several threads compute the same column; they write the
@@ -258,19 +260,22 @@ __global__ void xres_fast_kernel(float* __restrict__ Xres, const float* __restri
     *x = __fsub_rn(*x, v);
 }
 
-__global__ void bupdate_kernel(float* __restrict__ B, const float* __restrict__ ctc,
+__global__ void bupdate_kernel(float* __restrict__ B, const int64_t* __restrict__ ptr,
+                               const int64_t* __restrict__ rows, const float* __restrict__ vals,
                                const int64_t* __restrict__ iX, const int64_t* __restrict__ iY,
-                               const float* __restrict__ amp, int ng, int stride, int NU, int NT, int nt)
+                               const float* __restrict__ amp, int ng, int stride, int NT, int nt)
 {
-    const int u = blockIdx.y;
+    const int k = blockIdx.y;                                          // k-th non-zero unit
     const int W = 2 * nt + 1;
     const int64_t q = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;  // (spike, d), d fastest
     if (q >= (int64_t)ng * W) return;
     const int64_t i = (q / W) * stride;
+    const int64_t e = ptr[iY[i]] + k;
+    if (e >= ptr[iY[i] + 1]) return;
     const int d = (int)(q % W);
     const int64_t col = iX[i] + d - nt;
-    const float v = __fmul_rn(amp[i], ctc[((int64_t)u * NU + iY[i]) * W + d]);
-    float* p = &B[(int64_t)u * NT + col];
+    const float v = __fmul_rn(amp[i], vals[e * W + d]);
+    float* p = &B[rows[e] * NT + col];
     *p = __fsub_rn(*p, v);
 }
 
@@ -331,14 +336,15 @@ EXPORT int ks_matching_xres_fast(float* Xres, const float* U, const float* W, co
     return (int)cudaGetLastError();
 }
 
-EXPORT int ks_matching_bupdate(float* B, const float* ctc, const int64_t* iX, const int64_t* iY,
-                               const float* amp, int ng, int stride, int NU, int NT, int nt)
+EXPORT int ks_matching_bupdate(float* B, const int64_t* ptr, const int64_t* rows, const float* vals,
+                               const int64_t* iX, const int64_t* iY, const float* amp, int ng, int stride,
+                               int kmax, int NT, int nt)
 {
-    if (ng == 0) return 0;
-    if (NU > 65535) return -1;
+    if (ng == 0 || kmax == 0) return 0;
+    if (kmax > 65535) return -1;
     const int W = 2 * nt + 1;
-    dim3 grid((unsigned)(((int64_t)ng * W + 255) / 256), NU);
-    bupdate_kernel<<<grid, 256>>>(B, ctc, iX, iY, amp, ng, stride, NU, NT, nt);
+    dim3 grid((unsigned)(((int64_t)ng * W + 255) / 256), kmax);
+    bupdate_kernel<<<grid, 256>>>(B, ptr, rows, vals, iX, iY, amp, ng, stride, NT, nt);
     return (int)cudaGetLastError();
 }
 
