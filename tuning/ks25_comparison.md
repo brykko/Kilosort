@@ -20,6 +20,27 @@ default on kobe and 7 SD better on MEC.
 
 Means over replicates ± SD across them (default kobe: five seeds; the others three).
 
+**Bayesian decoding** (spec §14, `bayes_decode.py`): median error of tracked head direction and 2D
+position, decoded from each sort's eligible units, cross-validated over the time halves; every sort of
+an excerpt is decoded on the same windows. Lower is better; mean over replicates (SD across replicates
+0.03–0.3).
+
+| Excerpt | Decoded (window) | KS4 default | KS2.5 standard | H8 | H8 − KS2.5 |
+|---|---|---|---|---|---|
+| Kobe | Direction (20 ms) | 12.3° | 12.6° | 11.4° | **−1.2°** |
+| Kobe | Direction (100 ms) | 9.0° | 9.7° | 9.1° | −0.6° |
+| Kobe | Position (20 ms) | 29.2 cm | 27.0 cm | 25.4 cm | **−1.6 cm** |
+| Kobe | Position (100 ms) | 13.9 cm | 13.6 cm | 13.2 cm | −0.4 cm |
+| MEC | Direction (20 ms) | 18.0° | 18.0° | 16.3° | **−1.7°** |
+| MEC | Direction (100 ms) | 11.9° | 12.3° | 11.5° | −0.8° |
+| MEC | Position (20 ms) | 26.9 cm | 21.9 cm | 23.1 cm | **+1.2 cm** |
+| MEC | Position (100 ms) | 13.0 cm | 12.0 cm | 12.7 cm | +0.7 cm |
+
+Decoding separates the sorters far less than S does. Direction is saturated at 100 ms (all three within
+0.7°), and position nearly so; at 20 ms, the least saturated window, H8 decodes direction best on both
+recordings and position best on kobe, but **KS2.5 decodes MEC position best**, although H8's position
+S there is 878 bits/s higher (see Bayesian decoding below).
+
 ## Kobe (search excerpt, hybrid)
 
 **KS2.5 against default** (`run_candidate.py --phase comparison`, runs 231–233 in the search log):
@@ -101,6 +122,55 @@ Mean ΔS +878.3 (+43%, 48 SD of KS2.5 across its replicates).
 **Units reproduced across replicates:** KS2.5 ~652 (645, 655, 656; 73–75% of ~882 eligible), against
 ~610 for default (82–84%) and ~900 for H8 (48–51%).
 
+## Bayesian decoding (both excerpts)
+
+Plan: [search_ks25.md](search_ks25.md) §6. Poisson decoder with independent units, flat prior and the
+posterior maximum (Zhang et al. 1998); direction in 6° bins, position in 5 cm bins; tuning fitted on one
+time half and the other decoded, both ways; only windows in which every tracking frame is usable
+(valid tracking, speed ≥ 5 cm/s). Windows decoded: kobe 42,646 (20 ms), 8,324 (100 ms), 1,494 (500 ms);
+MEC 49,737, 9,813 and 1,850. Results: `runs\bayes_decode.json` in each data folder.
+
+**Median error, all three windows** (mean over replicates):
+
+| Excerpt | Decoded | Window | KS4 default | KS2.5 standard | H8 |
+|---|---|---|---|---|---|
+| Kobe | Direction (°) | 20 / 100 / 500 ms | 12.3 / 9.0 / 5.8 | 12.6 / 9.7 / 6.2 | 11.4 / 9.1 / 5.8 |
+| Kobe | Position (cm) | 20 / 100 / 500 ms | 29.2 / 13.9 / 10.8 | 27.0 / 13.6 / 10.8 | 25.4 / 13.2 / 10.8 |
+| MEC | Direction (°) | 20 / 100 / 500 ms | 18.0 / 11.9 / 8.2 | 18.0 / 12.3 / 8.4 | 16.3 / 11.5 / 8.0 |
+| MEC | Position (cm) | 20 / 100 / 500 ms | 26.9 / 13.0 / 10.9 | 21.9 / 12.0 / 10.0 | 23.1 / 12.7 / 10.8 |
+
+**Saturation and equal unit counts** (100 ms windows; median error with N randomly drawn eligible
+units, mean over 10 draws and the replicates; "all" is every eligible unit):
+
+| Excerpt | Decoded | Sorter | 25 | 50 | 100 | 200 | 400 | 800 | 1600 | all |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Kobe | Direction (°) | default | 25.3 | 17.3 | 12.9 | 10.9 | 9.5 | | | 9.0 |
+| | | KS2.5 | 29.2 | 19.4 | 14.9 | 12.2 | 10.6 | 9.8 | | 9.7 |
+| | | H8 | 36.0 | 22.7 | 16.0 | 12.2 | 10.7 | 9.5 | 9.1 | 9.1 |
+| Kobe | Position (cm) | default | 58.7 | 41.9 | 26.5 | 18.3 | 15.3 | | | 13.9 |
+| | | KS2.5 | 59.7 | 43.2 | 27.4 | 18.3 | 15.3 | 13.7 | | 13.6 |
+| | | H8 | 65.5 | 51.1 | 33.3 | 21.2 | 16.3 | 14.2 | 13.3 | 13.2 |
+| MEC | Direction (°) | default | 36.1 | 24.7 | 18.3 | 14.3 | 12.5 | | | 11.9 |
+| | | KS2.5 | 36.9 | 27.6 | 19.8 | 15.5 | 13.5 | 12.4 | | 12.3 |
+| | | H8 | 45.8 | 31.3 | 23.1 | 16.5 | 14.0 | 12.5 | 11.6 | 11.5 |
+| MEC | Position (cm) | default | 52.2 | 41.4 | 30.2 | 18.9 | 14.6 | | | 13.0 |
+| | | KS2.5 | 51.9 | 41.8 | 28.4 | 18.5 | 14.0 | 12.2 | | 12.0 |
+| | | H8 | 56.2 | 49.3 | 37.1 | 25.4 | 17.6 | 14.3 | 12.9 | 12.7 |
+
+- **Saturation:** every curve flattens towards its full count. Roughly doubling the units, from 400 to
+  ~800 (default, KS2.5) or from 800 to ~1700 (H8), improves direction at 100 ms by 0.4–1.2° (4–10%) and
+  position by 1.0–2.0 cm (7–15%): direction is close to saturated there, as expected, and position has a
+  little more headway. The 20 ms window leaves the most.
+- **At equal unit counts, H8's units decode worse** than default's or KS2.5's (400 units: kobe direction
+  10.7° against 9.5° and 10.6°; MEC position 17.6 cm against 14.6 and 14.0). A random H8 unit carries
+  less information than a random default unit, as S also shows: the units H8 adds over default carry
+  about 0.4 bits/s each on kobe and 0.9 on MEC, against 1.3 and 2.6 for an average default unit. H8
+  reaches the others' error through its larger number of units.
+- **Decoding and S rank MEC position differently.** S adds up each unit's own information; a decoder's
+  error depends on how the units' information combines, and on the noise each weakly tuned unit's fitted
+  map adds. The two can rank sorts differently when the added units are weak or carry information the
+  others already have. Which of these explains KS2.5's better MEC position decoding has not been tested.
+
 ## What the comparison shows
 
 - **H8 is the better sorter on both recordings**, by ~420 bits/s of heading information on kobe and
@@ -112,6 +182,10 @@ Mean ΔS +878.3 (+43%, 48 SD of KS2.5 across its replicates).
   recordings: KS2.5 is about δ behind on kobe and ~7 SD ahead on MEC.
 - **KS2.5's units reproduce less often than default KS4's** (69–75% against 82–85%) but more often than
   H8's (48–60%); in number, H8 reproduces ~1.4–1.6 times as many units as KS2.5.
+- **Bayesian decoding barely separates the three sorters.** Direction saturates at 100 ms windows and
+  position nearly so; at 20 ms H8 decodes best in three of the four cases (by 1.2–1.7° or 1.6 cm) and
+  KS2.5 decodes MEC position best (by 1.2 cm). H8's large S gain shows up in decoding only as a small
+  improvement, and not at all for MEC position.
 
 ## Sorter notes
 
@@ -155,3 +229,5 @@ Kobe scoring (`<K>` = `C:\data\ks4_tuning\26648_kobe_2020-08-21`):
   folders under `strict_cleaning\`).
 - MEC (`C:\data\ks4_tuning\25843_roger_2019-09-11\runs\`): `ks25_standard_r{1,2,3}\`,
   `transfer_ks25.json`, `transfer_H8_vs_ks25.json`, `reproducibility_ks25.json`.
+- Both: `bayes_decode.json` (Bayesian decoding of every sort; command in
+  [search_ks25.md](search_ks25.md) §6).
