@@ -86,3 +86,14 @@ in the results table), and at 100 ms the error with 25–1600 randomly drawn uni
 direction saturates and how the sorters compare at equal unit counts.
 
     python bayes_decode.py --group default <sorts> --group ks25 <sorts> --group H8 <sorts> --tracking <npz> --raw-artefacts <npz> --t0 <s> --duration 1200 [--hybrid-truth <npz>] --out <data>/runs/bayes_decode.json
+
+## 7. Addendum: correlation-based decoding (spec v0.19)
+
+Added after the Bayesian decoding of §6, which ranked the sorters differently from S on MEC position;
+an independent-unit Poisson decoder may lose accuracy when units repeat one another's information.
+Frozen before it is run on the comparison's sorts (a functional test on kobe default seed 1 only
+checked that the script runs). `corr_decode.py` decodes the same sorts, on the same windows, by
+population-vector correlation, in two variants fixed now: 'raw' and 'z' (spec §14). Reported as in §6:
+median error at 20, 100 and 500 ms, and at 100 ms the error with 25–1600 randomly drawn units.
+
+    python corr_decode.py --group default <sorts> --group ks25 <sorts> --group H8 <sorts> --tracking <npz> --raw-artefacts <npz> --t0 <s> --duration 1200 [--hybrid-truth <npz>] --out <data>/runs/corr_decode.json
