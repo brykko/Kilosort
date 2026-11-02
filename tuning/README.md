@@ -84,6 +84,7 @@ done (spec v0.17). **Winner** (H8,
 | `popdecode.py`, `popdecode_test.py`, `popdecode_track.py` | Population decoding as an alternative objective (round 3; not adopted, spec §12) |
 | `bayes_decode.py`, `corr_decode.py` | Bayesian and population-vector correlation decoding of head direction and 2D position, reported in the KS2.5 comparison (§14) |
 | `ring_reference.py` | Superseded HMM reference (kept for the record) |
+| `exploratory\` | Exploratory analyses outside the frozen harness (not hashed): isolation and contamination, tuning uniqueness, decoding checks, KS2.5 setup checks. All experimental code goes here; see its [README](exploratory/README.md) |
 
 **Data and results** (`C:\data\ks4_tuning\26648_kobe_2020-08-21\`):
 
@@ -120,6 +121,9 @@ done (spec v0.17). **Winner** (H8,
 | `runs\default_s1..3\`, `runs\H8_s1..3\` | Default and winner sorts (`run_sort.py`, no stage cache) |
 | `runs\transfer.json`, `runs\reproducibility.json` | Transfer scores and guards (`transfer.py`), units reproduced across seeds |
 | `runs\ks25_standard_r1..3\`, `runs\transfer_ks25.json`, `runs\transfer_H8_vs_ks25.json`, `runs\reproducibility_ks25.json`, `runs\bayes_decode.json`, `runs\corr_decode.json` | KS2.5 comparison (§14): sorts, KS2.5 and H8 against default, H8 against KS2.5, units reproduced, population decoding |
+
+**Exploratory outputs** (`C:\data\ks4_tuning\exploratory\`): one subfolder per folder of `exploratory\`
+(both excerpts together).
 
 ## Environments
 
