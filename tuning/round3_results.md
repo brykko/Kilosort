@@ -61,4 +61,4 @@ Units reproduced across seeds: D5 ~960 (63%), D1 ~880 (58%), C1 ~940 (58%).
 
 ## Budget
 
-36 search runs in round 3 (30 screen, 6 combination and extension); 172 runs in all, plus re-scores.
+36 search runs in round 3 (30 screen, 6 combination and extension); 124 sorts in all over three rounds (2 of them stopped), plus 54 re-scores of existing sorts.
