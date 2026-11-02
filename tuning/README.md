@@ -6,7 +6,8 @@ run them.
 
 ## Status (2026-11-02)
 
-Four search rounds, ablation and the transfer test are done (spec v0.16). **Winner** (H8,
+Four search rounds, ablation, the transfer test and the comparison with the lab's KS2.5 pipeline are
+done (spec v0.17). **Winner** (H8,
 [round4_results.md](round4_results.md)), against KS4 defaults:
 
 | Setting | Winner | Default |
@@ -24,6 +25,10 @@ Four search rounds, ablation and the transfer test are done (spec v0.16). **Winn
   the six changes costs more than δ/2.
 - **MEC transfer excerpt:** position ΔS +977 bits/s (+50%) with both guards passing
   ([transfer_results.md](transfer_results.md)).
+- **Against the lab's KS2.5** (neuropixels pipeline, preset "standard"; three replicates per excerpt;
+  [ks25_comparison.md](ks25_comparison.md)): H8 beats it by ΔS +423.6 (ΔS_track +358.3) on kobe and by
+  +878.3 bits/s of position information on MEC (+43% on each), every guard passing. KS2.5 and default
+  KS4 are close: KS2.5 is about δ below default on kobe (ΔS −30.7) and above it on MEC (+99.0).
 - **Path there:** round 1 found that stock KS4 merges too much (relaxing the merge tree gained most);
   round 2 set the graph resolution and the final merge (with the reproducibility stopping rule);
   round 3 lowered the detection thresholds; round 4 doubled the landmark spikes in the first
@@ -48,10 +53,13 @@ Four search rounds, ablation and the transfer test are done (spec v0.16). **Winn
 | `search_round4.md` | Round 4 plan (preprocessing, universal templates, resolution recheck) |
 | `round4_results.md` | Round 4 results, and the ablation of its leader (the current winner) |
 | `transfer_results.md` | Transfer test of the winner on the MEC excerpt (§10) |
+| `search_ks25.md` | Plan of the comparison with the lab's KS2.5 pipeline (§14) |
+| `ks25_comparison.md` | KS2.5 comparison results |
 | `config.json` | Paths and fixed parameters used by the wrapper |
 | `run_candidate.py` | Wrapper: `freeze`, and `run` (sort → clean → evaluate → compare → log) |
 | `run_queue.py` | Runs a queue of evaluations through `run_candidate.py`, one sort at a time |
 | `run_sort.py` | One KS4 sort from this checkout, with `provenance.json`; `--cache` reuses unaffected stages |
+| `ks25_sort.py`, `ks25_sort.m` | One KS2.5 sort with the neuropixels pipeline's "standard" preset (MATLAB R2025a), adapted to the harness's conventions (§14) |
 | `stage_cache.py` | Stage cache: reuses drift correction, first detection and (when only later settings differ) first clustering and template matching; bit-identical to full sorts |
 | `cleaning.py` | Multi-unit events, duplicate test, masks (§6.1–6.3) |
 | `waveform.py` | Bombcell noise screen (§6.4) |
@@ -95,6 +103,7 @@ Four search rounds, ablation and the transfer test are done (spec v0.16). **Winn
 | `runs\strict_cleaning_*.json`, `runs\strict_cleaning\` | Stricter-cleaning re-scores (§9.2) and their hard-linked shadow sort folders |
 | `runs\round2_oversplit_R4_s1.json`, `runs\round2_tree_diagnostic.json`, `runs\round3_peel_diagnostic.json` | Round diagnostics |
 | `runs\popdecode_*.json` | Population-decoding test (spec §12) |
+| `runs\ks25_standard_r1..3\`, `runs\ks25_comparison\`, `runs\reproducibility_ks25.json`, `runs\reproducibility_default.json`, `runs\strict_cleaning_ks25.json` | KS2.5 comparison (§14): sorts, H8 against KS2.5, units reproduced across replicates (KS2.5 and default), stricter cleaning |
 | `search\stage_cache\` | Stage cache; entries can be deleted at any time (a miss recomputes them). Pruned on 2026-11-02 to the winner's entries |
 
 **Transfer test data** (`C:\data\ks4_tuning\25843_roger_2019-09-11\`, spec §2 and §10):
@@ -106,12 +115,14 @@ Four search rounds, ablation and the transfer test are done (spec v0.16). **Winn
 | `tracking_source\motive\` | Local copy of the session's Motive files (input to `extract_tracking.py`) |
 | `runs\default_s1..3\`, `runs\H8_s1..3\` | Default and winner sorts (`run_sort.py`, no stage cache) |
 | `runs\transfer.json`, `runs\reproducibility.json` | Transfer scores and guards (`transfer.py`), units reproduced across seeds |
+| `runs\ks25_standard_r1..3\`, `runs\transfer_ks25.json`, `runs\transfer_H8_vs_ks25.json`, `runs\reproducibility_ks25.json` | KS2.5 comparison (§14): sorts, KS2.5 and H8 against default, H8 against KS2.5, units reproduced |
 
 ## Environments
 
 - `kilosort` (editable install of this checkout; refuses any other copy): everything except `acg_class.py`.
 - `elv`: `acg_class.py` only.
 - `npx-load`: `extract_tracking.py` only.
+- MATLAB R2025a with `C:\code\github\neuropixels`: the KS2.5 sorts (`ks25_sort.m`, called by `ks25_sort.py`).
 
 ## Running the search
 
