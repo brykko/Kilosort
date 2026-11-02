@@ -12,7 +12,7 @@ default, log.
         Verifies every hash against frozen.json (refuses to score on any mismatch), writes a 'start'
         record to the log, sorts the hybrid excerpt in a separate process (run_sort.py), evaluates and
         compares in a separate process, then writes a 'result' record. Prints only what the optimising
-        agent may see (§3): S, dS, S_track, C, guard values and pass/fail, unit counts, cleaning
+        agent may see (§3): S, dS, S_track, dS_track, guard values and pass/fail, unit counts, cleaning
         statistics, runtime. Per-unit scores stay in the run folder's evaluation.json, which the
         optimising agent does not read.
 

@@ -38,8 +38,6 @@ p.add_argument('--hybrid-truth')
 p.add_argument('--sigma-s', type=float, required=True)
 p.add_argument('--draws', type=int, default=5)
 p.add_argument('--out', required=True)
-p.add_argument('--max-contamination', type=float, default=None,
-               help='refractory eligibility limit (0.10 up to spec v0.8; none since v0.9)')
 args = p.parse_args()
 rng = np.random.default_rng(0)
 
@@ -58,7 +56,7 @@ valid = ref['moving'] & (frac <= 0.5) & np.isfinite(ref['theta_ref'])
 
 def S_of(by, passes):
     """S of a perturbed sort; passes: unit -> waveform-screen result (inherited)."""
-    units = [c for c in eligible_units(by, args.duration, args.max_contamination) if passes[c]]
+    units = [c for c in eligible_units(by, args.duration, None) if passes[c]]
     return float(score.corrected_scores(ref['theta_ref'], cycle_counts(by, units, bounds), dur, valid, half).sum()), units
 
 

@@ -36,6 +36,26 @@ For scale, the same score on kobe (default seeds 1–2 against H8 seed 1, hybrid
 functional test of `transfer.py` only): ΔS +1137, so the winner's gain in position information is
 of similar size on both recordings.
 
+## How it was run
+
+Extraction (`kilosort` environment for the excerpt; `npx-load` with the neuropixels `python` folder
+on `PYTHONPATH` for tracking and probe):
+
+    python extract_segment.py --remote-probe moser:sweeps/richarga/data/roger_25843/rec/2019-09-11_20-59-06/probe_1 --t0 13575 --t1 14775 --out-dir <M>/search
+    python extract_tracking.py --motive-dir <M>/tracking_source/motive --t0 13575 --t1 14775 --out <M>/search/tracking_13575-14775s.npz
+    python make_probe.py --meta-dir <folder with source.ap.meta> --n-chan-bin 385 --out <M>/search/probe_3a_opt3.json
+    python raw_artefacts.py --data <M>/search/ap_13575-14775s.bin --probe <M>/search/probe_3a_opt3.json --n-chan-bin 385 --out <M>/search/raw_artefacts_car.npz
+
+Sorts (seeds 1–3; `--settings` with the winner's settings for `H8_s<k>`, none for `default_s<k>`):
+
+    python run_sort.py --data <M>/search/ap_13575-14775s.bin --probe <M>/search/probe_3a_opt3.json --n-chan-bin 385 --out <M>/runs/default_s<k> --seed <k>
+
+Scoring:
+
+    python transfer.py --default <M>/runs/default_s1 <M>/runs/default_s2 <M>/runs/default_s3 --winner <M>/runs/H8_s1 <M>/runs/H8_s2 <M>/runs/H8_s3 --tracking <M>/search/tracking_13575-14775s.npz --raw-artefacts <M>/search/raw_artefacts_car.npz --t0 13575 --duration 1200 --out <M>/runs/transfer.json
+
+`<M>` is `C:\data\ks4_tuning\25843_roger_2019-09-11`.
+
 ## Files
 
 `C:\data\ks4_tuning\25843_roger_2019-09-11\`: `search\` (excerpt with manifest, tracking, probe file,

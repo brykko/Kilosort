@@ -1,12 +1,12 @@
 # Kilosort 4 settings search: evaluation spec
 
-**Status:** v0.15, frozen (latest `freeze` record in the search log and `runs/frozen.json`).
+**Status:** v0.16, frozen (latest `freeze` record in the search log and `runs/frozen.json`).
 
 **Freezing:** the spec and the evaluation harness are committed together, with the commit hash and the SHA-256 of every harness file recorded in the search log. Any later change gets a new version number and a new `freeze` record stating what changed and why. A change to the score, guards or thresholds after the search has started invalidates comparisons made under the old version, and those candidates must be re-scored.
 
 **Principle:** the objective S decides how finely units are split. The guards (§7) protect only against what S can't see: artefact units, lost or merged known units, and loss of untuned cells. Duplicated spikes are removed before scoring (§6.3), and the final selection checks that a gain survives stricter duplicate removal (§9.2). A check dropped from the criteria is removed from the harness and these documents, not kept as a reported quantity.
 
-**History:** earlier versions and the reasons for each change are in git (`git log -p -- tuning/evaluation_spec.md`). v0.11 removed the checks that are no longer criteria and named the guards; v0.12 removes one more; v0.13 adds the resolution stopping rule (§9.2); v0.14 replaces the duplicate guards with a check at selection (§9.2); v0.15 names the transfer excerpt (§2, §10) and completes the tracked-position score (Appendix A: null correction, α rule, time-shift control).
+**History:** earlier versions and the reasons for each change are in git (`git log -p -- tuning/evaluation_spec.md`). v0.11 removed the checks that are no longer criteria and named the guards; v0.12 removes one more; v0.13 adds the resolution stopping rule (§9.2); v0.14 replaces the duplicate guards with a check at selection (§9.2); v0.15 names the transfer excerpt (§2, §10) and completes the tracked-position score (Appendix A: null correction, α rule, time-shift control); v0.16 records the KS4 code changes made during the search (§2, §4) and the population-decoding test (§12); no rule changes.
 
 ---
 
@@ -25,7 +25,7 @@ The claim the procedure supports is narrow: *on this 20-minute excerpt, the winn
 | Probe | Neuropixels 3A (option 3); 384 channels plus sync saved (int16, interleaved); 374 recording sites after excluding the 10 reference sites; 30 kHz. `probe_1` is the sync master: synced time of sample i is (i + 1) / 30000 s. |
 | Behaviour | Motive rigid-body tracking, 120 Hz (used only by the harness, for S_track and Phase 0) |
 | Reference sort | Default KS4 sort of the excerpt without hybrid insertion, reserved seed 1000 (§4, §5.1, §8.11) |
-| KS4 base | Branch `perf-optimizations` at `e28143c`: this fork at `0e07514` (includes the `swarmsplitter.check_CCG` refractoriness fix, 549ec32, which no release tag contains yet), plus the seed patch (§4, `5c84988`) and performance changes (`e28143c`; `perf_audit/README.md`). The performance changes are bit-identical to `0e07514` for default settings except where KS4 itself raced (≈ 0.01% of cluster labels on the excerpt), and make a sort bit-reproducible for a given seed; a default sort takes ≈ 6.5 min instead of ≈ 17. The fused CUDA kernels reproduce cuBLAS's summation order only for KS4's default `nearest_chans`, `template_sizes` and `n_templates`; other values use a generic path that can differ from stock KS4 by ~1 ulp. Plots are skipped (`make_plots=False`). Sorts import KS4 from this checkout only (editable install). Each run folder records its commit, code diff and kernel-library hash in `provenance.json`. The reference sorts (§5.1) were made at `0e07514` plus the seed patch; θ_ref is frozen, so this does not affect comparisons. |
+| KS4 base | Branch `perf-optimizations` at `e28143c`: this fork at `0e07514` (includes the `swarmsplitter.check_CCG` refractoriness fix, 549ec32, which no release tag contains yet), plus the seed patch (§4, `5c84988`) and performance changes (`e28143c`; `perf_audit/README.md`). The performance changes are bit-identical to `0e07514` for default settings except where KS4 itself raced (≈ 0.01% of cluster labels on the excerpt), and make a sort bit-reproducible for a given seed; a default sort takes ≈ 6.5 min instead of ≈ 17. The fused CUDA kernels reproduce cuBLAS's summation order only for KS4's default `nearest_chans`, `template_sizes` and `n_templates`; other values use a generic path that can differ from stock KS4 by ~1 ulp. Plots are skipped (`make_plots=False`). Sorts import KS4 from this checkout only (editable install). Each run folder records its commit, code diff and kernel-library hash in `provenance.json`. The reference sorts (§5.1) were made at `0e07514` plus the seed patch; θ_ref is frozen, so this does not affect comparisons. Two later performance commits on the same branch (`5e05b53`, `b011d7b`; a default sort ≈ 4 min) are bit-identical to `e28143c`; the default replicates made at `e28143c` were reproduced exactly at round 1's base (`search_round1.md` §2.2). The search ran on branch `ks4-tuning`, which adds the settings and memory changes of §4. |
 | Transfer recording | MEC open-field recording: rat 25843 ("roger"), 2019-09-11, `moser:sweeps/richarga/data/roger_25843/rec/2019-09-11_20-59-06/` (open-field session 1, 7457–14778 s), `probe_1` (the probe with the most direction-coding cells; the sync master, so synced time of sample i is (i + 1) / 30000 s). Neuropixels 3A, option 3, bank 0: 374 recording sites over 220–4040 µm; 1.5 × 1.5 m arena (§10) |
 | Transfer excerpt | Synced 13575–14775 s (the last 20 minutes of open-field session 1, before an untwisting break), 27.72 GB; `C:\data\ks4_tuning\25843_roger_2019-09-11\search\` (`ap_13575-14775s.bin` with manifest, `tracking_13575-14775s.npz`, `probe_3a_opt3.json`) |
 
@@ -50,7 +50,7 @@ The excerpt is sorted as one run. The hybrid version (§7.3) is written once fro
 
 ## 4. What may vary, what is fixed
 
-**May vary:** any KS4 setting, and KS4 code under `kilosort/`, except as below. Every code change is stored as a diff with its hash in the log. Round 1 varies settings only; the settings it adds to KS4 are listed in `search_round1.md` §2.1 and reproduce stock KS4 exactly at their defaults (checked by a full sort, §2.2 there).
+**May vary:** any KS4 setting, and KS4 code under `kilosort/`, except as below. Every code change is stored as a diff with its hash in the log. The settings added to KS4 for the search (round 1: `search_round1.md` §2.1, commit `11a47f1`; round 2: `search_round2.md`, `72077ed`) reproduce stock KS4 exactly at their defaults (checked by full sorts). Two memory changes made during round 2, sparse template cross-correlations in template matching (`7e66aa2`, kernel library version 3) and `similar_templates` computed in row blocks (`c2eed66`), leave sorts bit-identical (checked by full sorts at default and high-resolution settings; commit messages give the details). With the performance commits of §2, these are the only changes to KS4's code.
 
 **Fixed:**
 - `duplicate_spike_ms = 0.25` (default): KS4's own removal of near-coincident spikes within a unit, left as it is so that the harness's duplicate cleaning (§6.3) sees every sort the same way.
@@ -112,8 +112,6 @@ All comparisons are paired on the same excerpt: ΔS = S_candidate − S_default.
 - δ = max(δ_practical, 2σ_S), with δ_practical = 1% of default S.
 - σ_track: SD of S_track (§7.2) across the same replicates; 13.6 bits/s, so δ_track = 2σ_track = 27.3 bits/s and δ_track/2 = 13.6.
 - A candidate *improves* if mean ΔS ≥ δ over its replicates, mean ΔS_track ≥ δ_track/2, and every guard passes.
-
-Median decoding error (degrees) is reported for every evaluation but never used for decisions.
 
 ## 6. Harness processing (applied identically to every sort, in this order)
 
@@ -277,6 +275,7 @@ A spec change during the search gets a new version and a new `freeze` record (re
 **Considered and judged minor (monitored, not designed around):**
 - *Correlated internal dynamics* (theta sweeps, internal-direction alternation): add noise to decoding but affect every candidate identically on the same data, so they don't bias paired comparisons. θ_ref follows them, so S treats them as signal.
 - *Self-leak into θ_ref:* a unit's own reference-sort spikes shift θ_ref by ~1/N. Estimated at ~0.1% of S beforehand; the prototype invariance test measured about 2 bits/s (~0.4% of S) for a sort scored against a reference built from itself. Checked once (§8.4).
+- *Population decoding as the objective* (tested in round 3, not adopted; `tuning/popdecode*.py`, `runs/popdecode_*.json`): cross-validated von Mises regression from per-cycle population rates to the heading. Decoding θ_ref barely separates sorts and favours default-like ones (R4 −0.03 bits/s against default's 42.2; γ 8 −0.67), since θ_ref comes from a default sort. Decoding tracked heading saturates (47.3 bits/s; leaders gain 1%) and still penalises higher resolution (γ 8 −0.67). It also saturates with unit count (33.2 bits/s from 50 units, 42.2 from 777), where S, a sum over units, does not (§8.7).
 - *Genuine sub-millisecond synchrony* (e.g. gap-junction-coupled interneurons) can be flagged as small duplicates in §6.3. Its effect on S is small, and §8.10 measures how often it happens.
 
 ## 13. Open decisions
