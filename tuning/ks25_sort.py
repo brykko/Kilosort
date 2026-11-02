@@ -1,8 +1,8 @@
-"""Kilosort 2.5 sort of an excerpt with the neuropixels pipeline's "standard" preset (Gardner et al.
-2022), adapted to the harness's conventions (spec §13, the KS2.5 comparison).
+"""Kilosort 2.5 sort of an excerpt with a neuropixels pipeline preset ("standard", Gardner et al. 2022,
+or "standard_low"), adapted to the harness's conventions (spec §13, the KS2.5 comparison).
 
     python ks25_sort.py --data <excerpt .bin> --meta <source.ap.meta> --probe <KS4 probe .json>
-        --out <sort folder> --seed <replicate>
+        --out <sort folder> --seed <replicate> [--preset standard|standard_low]
 
 Sorts with ks25_sort.m in MATLAB R2025a (the pipeline's own code from C:\\code\\github\\neuropixels;
 see that file for the differences from the pipeline), then adapts rezToPhy's output so the harness
@@ -93,6 +93,7 @@ if __name__ == '__main__':
     p.add_argument('--probe', required=True, help='KS4 probe .json of the excerpt (frame check)')
     p.add_argument('--out', required=True, help='sort folder (must not exist)')
     p.add_argument('--seed', type=int, required=True, help='replicate: learnAndSolve8b seed (pipeline: 1)')
+    p.add_argument('--preset', choices=('standard', 'standard_low'), default='standard', help='pipeline preset')
     args = p.parse_args()
     out = Path(args.out)
     if out.exists():
@@ -100,14 +101,14 @@ if __name__ == '__main__':
     out.mkdir(parents=True)
     git = lambda *a: subprocess.run(['git', '-C', str(NPX), *a], capture_output=True, text=True, check=True).stdout
     q = lambda s: str(s).replace("'", "''")
-    cmd = f"addpath('{q(HERE)}'); ks25_sort('{q(args.data)}', '{q(args.meta)}', '{q(out)}', {args.seed})"
+    cmd = f"addpath('{q(HERE)}'); ks25_sort('{q(args.data)}', '{q(args.meta)}', '{q(out)}', {args.seed}, '{args.preset}')"
     t0 = time.time()
     with open(out / 'ks25_sort.log', 'w') as f:
         subprocess.run([str(MATLAB), '-batch', cmd], check=True, stdout=f, stderr=subprocess.STDOUT)
     minutes = (time.time() - t0) / 60
     stats = adapt(out, args.probe)
     (out / 'provenance.json').write_text(json.dumps({
-        'sorter': 'Kilosort 2.5, neuropixels pipeline preset "standard"',
+        'sorter': f'Kilosort 2.5, neuropixels pipeline preset "{args.preset}"', 'preset': args.preset,
         'neuropixels_commit': git('rev-parse', 'HEAD').strip(),
         'neuropixels_status': git('status', '--porcelain'),
         'ks25_tree': git('rev-parse', f'HEAD:{KS25}').strip(),

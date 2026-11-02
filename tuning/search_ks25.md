@@ -97,3 +97,40 @@ population-vector correlation, in two variants fixed now: 'raw' and 'z' (spec §
 median error at 20, 100 and 500 ms, and at 100 ms the error with 25–1600 randomly drawn units.
 
     python corr_decode.py --group default <sorts> --group ks25 <sorts> --group H8 <sorts> --tracking <npz> --raw-artefacts <npz> --t0 <s> --duration 1200 [--hybrid-truth <npz>] --out <data>/runs/corr_decode.json
+
+## 8. Addendum: preset "standard_low" (spec v0.20)
+
+Added after the comparison above, frozen before the first sort with this preset. Exploratory analyses
+(`tuning/exploratory/isolation/`, not results of this plan) found that KS2.5 "standard" outputs far fewer
+low-amplitude spikes than KS4: its `set_cutoff` deletes a quarter to a third of the spikes it extracts,
+and many of the spikes H8 assigns are never extracted by it. "standard_low" is the pipeline's preset with
+lower thresholds (`Th` [9 4] instead of [10 6]; spec §14). This addendum asks how KS2.5 compares with KS4
+when it admits more low-amplitude spikes.
+
+**Runs.** Six sorts, one at a time (kobe seeds 1–3, then MEC seeds 1–3), each into its own folder:
+
+| Excerpt | Folder | Seeds |
+|---|---|---|
+| Kobe (hybrid) | `C:\data\ks4_tuning\26648_kobe_2020-08-21\runs\ks25_standard_low_r<k>` | 1, 2, 3 |
+| MEC | `C:\data\ks4_tuning\25843_roger_2019-09-11\runs\ks25_standard_low_r<k>` | 1, 2, 3 |
+
+    python ks25_sort.py --data <excerpt .bin> --meta <data>/search/source.ap.meta --probe <data>/search/probe_3a_opt3.json --out <folder> --seed <k> --preset standard_low
+
+**Scoring**, as §4 with `ks25_standard_low` in place of `ks25_standard`:
+
+1. Kobe, each replicate against the five default replicates, logged:
+   `python run_candidate.py run --existing-sort <K>/ks25_standard_low_r<k> --name ks25_standard_low --seed <k> --phase comparison --settings '{"sorter": "ks2.5 standard_low"}' --rationale "..."`
+2. Kobe, H8 against standard_low: `compare.py --candidate <H8 seed k sort> --default <K>/ks25_standard_low_r1 r2 r3 --out <K>/ks25_comparison/H8_vs_ks25low_s<k>.json`, H8 seeds 1–3.
+3. Kobe, units reproduced across replicates (`reproducibility.py` → `reproducibility_ks25low.json`) and
+   stricter duplicate cleaning (`strict_cleaning.py` → `strict_cleaning_ks25low.json`).
+4. MEC, standard_low against default: `transfer.py --default <M>/default_s1 s2 s3 --winner <M>/ks25_standard_low_r1 r2 r3 --out <M>/transfer_ks25low.json`
+   (α scanned on the same default sorts, so the same α as `transfer_ks25.json`).
+5. MEC, H8 against standard_low: `transfer.py --default <M>/ks25_standard_low_r1 r2 r3 --winner <M>/H8_s1 s2 s3 --alpha <α from 4> --out <M>/transfer_H8_vs_ks25low.json`.
+6. MEC, units reproduced across replicates (`reproducibility.py` → `reproducibility_ks25low.json`).
+7. Both excerpts, decoding (§6, §7) of every sort of the comparison with standard_low added as a fourth
+   group, so all four sorters are decoded on the same windows: `bayes_decode.py` and `corr_decode.py`
+   with `--group default ... --group ks25 ... --group ks25_low ... --group H8 ...`, into
+   `bayes_decode_v020.json` and `corr_decode_v020.json` (the earlier files are kept).
+
+**Report:** `ks25_comparison.md`, standard_low alongside standard in the result tables and a section of
+its own (per replicate, as for standard), with its sort time and run-to-run SD.

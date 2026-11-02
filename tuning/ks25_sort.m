@@ -1,5 +1,5 @@
-function ks25_sort(fbinary, metaFile, outDir, seed, testOps)
-%KS25_SORT Kilosort 2.5 "standard" sort of one excerpt, as the neuropixels pipeline runs it.
+function ks25_sort(fbinary, metaFile, outDir, seed, preset, testOps)
+%KS25_SORT Kilosort 2.5 sort of one excerpt, as the neuropixels pipeline runs it.
 %   KS25_SORT(FBINARY, METAFILE, OUTDIR, SEED) sorts the int16 binary FBINARY (385 channels: 384
 %   data channels plus sync) and writes rezToPhy output to OUTDIR. METAFILE is the source
 %   recording's SpikeGLX AP metadata, from which the channel map is built.
@@ -8,8 +8,8 @@ function ks25_sort(fbinary, metaFile, outDir, seed, testOps)
 %   (C:\code\github\neuropixels): the same path setup (Shared.configureStageDependencies,
 %   SpikeSort.setKilosortPath(2.5)), channel map (probes.ChannelMap from the SpikeGLX shank map,
 %   as Datasets.DatasetSgl builds it; reference sites disconnected; no bad channels), ops preset
-%   (kilosort_config_v2_5("standard")), steps (preprocessDataSub, datashift2(rez, 1),
-%   learnAndSolve8b, autocurate) and export (rezToPhy). Differences, none of which change the sort
+%   (kilosort_config_v2_5(PRESET): "standard" or "standard_low"), steps (preprocessDataSub,
+%   datashift2(rez, 1), learnAndSolve8b, autocurate) and export (rezToPhy). Differences, none of which change the sort
 %   except the first:
 %   - learnAndSolve8b's seed is SEED (the replicate index); the pipeline always passes 1, so
 %     replicate 1 is the pipeline's sort. The seed sets the random order of the batches used to
@@ -18,9 +18,12 @@ function ks25_sort(fbinary, metaFile, outDir, seed, testOps)
 %   - ops.curationTrackingTimeRange is not set: autocurate stores it in rez.ops and nothing reads it;
 %   - fproc.dat is written to OUTDIR and deleted at the end; intermediate rez files are not saved.
 %
-%   KS25_SORT(..., TESTOPS) overrides ops fields with those of the struct TESTOPS (smoke tests only).
+%   KS25_SORT(FBINARY, METAFILE, OUTDIR, SEED, PRESET) uses the pipeline preset PRESET (default
+%   "standard").
 %
-%   Run with MATLAB R2025a: matlab -batch "ks25_sort('<bin>', '<meta>', '<outdir>', 1)"
+%   KS25_SORT(..., PRESET, TESTOPS) overrides ops fields with those of the struct TESTOPS (smoke tests only).
+%
+%   Run with MATLAB R2025a: matlab -batch "ks25_sort('<bin>', '<meta>', '<outdir>', 1, 'standard')"
 %   The RTX 5070 Ti (compute 12.0) needs CUDA forward compatibility in R2025a.
 
 npxRoot = 'C:\code\github\neuropixels';
@@ -30,10 +33,12 @@ parallel.gpu.enableCUDAForwardCompatibility(true);
 gpu = gpuDevice();
 SpikeSort.setKilosortPath(2.5);
 
+if nargin < 5 || strlength(string(preset)) == 0, preset = "standard"; end
+assert(ismember(string(preset), ["standard", "standard_low"]), 'preset must be standard or standard_low');
 if ~isfolder(outDir), mkdir(outDir); end
 log = Shared.initializeLogging(char(outDir), SpikeSort.Consts.LOG_FILE_NAME);
-log('i', 'KS2.5 standard sort of "%s", seed %u, pipeline version %s, GPU %s (compute %s)', ...
-    fbinary, seed, npxVersion(), gpu.Name, gpu.ComputeCapability);
+log('i', 'KS2.5 %s sort of "%s", seed %u, pipeline version %s, GPU %s (compute %s)', ...
+    preset, fbinary, seed, npxVersion(), gpu.Name, gpu.ComputeCapability);
 
 % Channel map, as runKilosortClustering > createChanMap builds it
 meta = fileread(metaFile);
@@ -49,7 +54,7 @@ chanMapFile = fullfile(outDir, SpikeSort.Consts.CHANNELMAP_FILE_NAME);
 save(chanMapFile, '-struct', 'chanMap', '-v7');
 
 % ops, as runKilosortMatlab sets them
-ops = SpikeSort.Kilosort.Config.kilosort_config_v2_5("standard");
+ops = SpikeSort.Kilosort.Config.kilosort_config_v2_5(preset);
 ops.ksVersion = 2.5;
 ops.prefiltered = false;
 ops.debug = max(ops.debug, false);
@@ -60,7 +65,7 @@ ops.NchanTOT = nSavedChans;
 ops.chanMap = char(chanMapFile);
 ops.fbinary = char(fbinary);
 ops.fproc = fullfile(char(outDir), 'fproc.dat');
-if nargin >= 5
+if nargin >= 6
     for f = string(fieldnames(testOps))'
         ops.(f) = testOps.(f);
     end
@@ -85,7 +90,7 @@ tCurate = toc(t0);
 log('i', 'Converting kilosort rez to phy NPY files...');
 rezToPhy(rez, char(outDir));
 fid = fopen(fullfile(outDir, 'ks25_run.json'), 'w');
-fprintf(fid, '%s', jsonencode(struct('seed', seed, 'pipeline_version', npxVersion(), ...
+fprintf(fid, '%s', jsonencode(struct('preset', string(preset), 'seed', seed, 'pipeline_version', npxVersion(), ...
     'matlab', version(), 'gpu', gpu.Name, 'n_batches', rez.ops.Nbatch, ...
     'n_learn_batches', numel(rez.iorderLearn), 'n_templates', size(rez.W, 2), ...
     'seconds', struct('preprocess', tPre, 'datashift', tShift - tPre, ...
