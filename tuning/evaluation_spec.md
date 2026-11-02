@@ -1,12 +1,12 @@
 # Kilosort 4 settings search: evaluation spec
 
-**Status:** v0.17, frozen (latest `freeze` record in the search log and `runs/frozen.json`).
+**Status:** v0.18, frozen (latest `freeze` record in the search log and `runs/frozen.json`).
 
 **Freezing:** the spec and the evaluation harness are committed together, with the commit hash and the SHA-256 of every harness file recorded in the search log. Any later change gets a new version number and a new `freeze` record stating what changed and why. A change to the score, guards or thresholds after the search has started invalidates comparisons made under the old version, and those candidates must be re-scored.
 
 **Principle:** the objective S decides how finely units are split. The guards (§7) protect only against what S can't see: artefact units, lost or merged known units, and loss of untuned cells. Duplicated spikes are removed before scoring (§6.3), and the final selection checks that a gain survives stricter duplicate removal (§9.2). A check dropped from the criteria is removed from the harness and these documents, not kept as a reported quantity.
 
-**History:** earlier versions and the reasons for each change are in git (`git log -p -- tuning/evaluation_spec.md`). v0.11 removed the checks that are no longer criteria and named the guards; v0.12 removes one more; v0.13 adds the resolution stopping rule (§9.2); v0.14 replaces the duplicate guards with a check at selection (§9.2); v0.15 names the transfer excerpt (§2, §10) and completes the tracked-position score (Appendix A: null correction, α rule, time-shift control); v0.16 records the KS4 code changes made during the search (§2, §4) and the population-decoding test (§12); no rule changes. v0.17 adds the comparison with the lab's Kilosort 2.5 pipeline (§14): how its sorts are run, adapted to the harness and scored; no rule changes for KS4 sorts.
+**History:** earlier versions and the reasons for each change are in git (`git log -p -- tuning/evaluation_spec.md`). v0.11 removed the checks that are no longer criteria and named the guards; v0.12 removes one more; v0.13 adds the resolution stopping rule (§9.2); v0.14 replaces the duplicate guards with a check at selection (§9.2); v0.15 names the transfer excerpt (§2, §10) and completes the tracked-position score (Appendix A: null correction, α rule, time-shift control); v0.16 records the KS4 code changes made during the search (§2, §4) and the population-decoding test (§12); no rule changes. v0.17 adds the comparison with the lab's Kilosort 2.5 pipeline (§14): how its sorts are run, adapted to the harness and scored; no rule changes for KS4 sorts. v0.18 adds Bayesian decoding of head direction and position to that comparison (§14), reported only.
 
 ---
 
@@ -301,6 +301,7 @@ europixels` at `6626f68`, in MATLAB R2025a (CUDA forward compatibility for the R
 - **Scoring:** §5–7, the §9.2 checks and Appendix A, unchanged.
   - Kobe: S, S_track and the guards against the five default replicates (`run_candidate.py --phase comparison --existing-sort`, logged); H8 against KS2.5, with KS2.5's three replicates as the baseline in `compare.py` (tolerances τ from their spread); units reproduced across replicates (`reproducibility.py`); stricter duplicate cleaning (`strict_cleaning.py`).
   - MEC: tracked-position S with its two guards, KS2.5 against default (`transfer.py`, α set on default as in §10) and H8 against KS2.5 (`transfer.py --alpha` at that α).
+  - Both excerpts, every sort of the comparison: Bayesian decoding of tracked head direction and 2D position (`tuning/bayes_decode.py`). Eligible units after cleaning; tuning fitted on one time half (direction: 6° bins, 12° smoothing as §5.2; position: 5 cm bins, 5 cm smoothing as Appendix A; pseudo-occupancy 0.25 s); the other half decoded in non-overlapping windows of 20, 100 and 500 ms on the usable frames of Appendix A (masks as there), with a Poisson likelihood of independent units, a flat prior and the posterior maximum; then the halves swap. Reported: median error (degrees, cm), and at 100 ms the median error with 25–1600 randomly drawn units (10 draws), which shows saturation and compares sorters at equal unit counts. Decoding is not a criterion (§12).
 - **Reading:** one sorter improves on another under the §5.4 rule against the other's replicates (on kobe δ = 28.6 and δ_track/2 = 13.6 bits/s, from default's spread); on MEC, against the baseline's spread across its replicates (§10). KS2.5's own run-to-run SD is reported.
 
 ---

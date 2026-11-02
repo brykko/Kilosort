@@ -74,3 +74,15 @@ MEC (`<M>` = `C:\data\ks4_tuning\25843_roger_2019-09-11\runs`):
 KS2.5, every guard, hybrid recovery, eligible and reproduced units, stricter-cleaning S, KS2.5's
 run-to-run SD, sort time; the same on MEC for position S. Then the README status. Nothing here feeds
 back into the KS4 settings.
+
+## 6. Addendum: Bayesian decoding (spec v0.18)
+
+Added after the comparison above, frozen before it is run on the comparison's sorts (a functional
+test on kobe default seed 1 only checked that the script runs). For every sort of the comparison
+(kobe: default seeds 1–5, KS2.5 r1–3, H8 seeds 1–3; MEC: default, KS2.5 and H8, seeds 1–3),
+`bayes_decode.py` decodes tracked head direction and 2D position from the eligible units, cross-validated
+over the two time halves (spec §14). Reported: the median error at 20, 100 and 500 ms windows (100 ms
+in the results table), and at 100 ms the error with 25–1600 randomly drawn units, to show where
+direction saturates and how the sorters compare at equal unit counts.
+
+    python bayes_decode.py --group default <sorts> --group ks25 <sorts> --group H8 <sorts> --tracking <npz> --raw-artefacts <npz> --t0 <s> --duration 1200 [--hybrid-truth <npz>] --out <data>/runs/bayes_decode.json
