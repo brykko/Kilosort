@@ -1,4 +1,5 @@
-"""Figure of tradeoff.py's curves: correctly assigned against misassigned spikes, one line per seed."""
+"""Figure of tradeoff.py's curves: correctly assigned against misassigned spikes, one line per seed; KS2.5
+before set_cutoff (the traced rerun, one seed) dashed."""
 import sys
 from pathlib import Path
 
@@ -9,8 +10,9 @@ import numpy as np  # noqa: E402
 
 D = Path('C:/data/ks4_tuning/exploratory/isolation/tradeoff')
 C = np.load(D / 'curves.npz')
-COL = {'default': '#2a78d6', 'ks25': '#eb6834', 'H8': '#1baf7a'}
-NAME = {'default': 'KS4 default', 'ks25': 'KS2.5 standard', 'H8': 'H8'}
+COL = {'default': '#2a78d6', 'ks25': '#eb6834', 'H8': '#1baf7a', 'ks25 pre-cut': '#eb6834'}
+NAME = {'default': 'KS4 default', 'ks25': 'KS2.5 standard', 'H8': 'H8', 'ks25 pre-cut': 'KS2.5 before set_cutoff'}
+LS = {'ks25 pre-cut': (0, (4, 2))}
 INK, INK2, GRID, BG = '#0b0b0b', '#52514e', '#e4e3df', '#fcfcfb'
 ZOOM = len(sys.argv) > 1 and sys.argv[1] == 'zoom'
 
@@ -21,11 +23,11 @@ for r, ex in enumerate(('kobe', 'mec')):
     for k, m in enumerate(('plain', 'local')):
         ax = axs[r, k]
         ends = {}
-        for g in ('default', 'ks25', 'H8'):
+        for g in COL:
             keys = sorted(x for x in C.files if x.startswith(f'{ex}|{m}|{g}|'))
             for key in keys:
                 mis, good = C[key].T / 1e6
-                ax.plot(mis, good, color=COL[g], lw=1.5, solid_capstyle='round')
+                ax.plot(mis, good, color=COL[g], lw=1.5, ls=LS.get(g, '-'), solid_capstyle='round')
                 ax.plot(mis[-1], good[-1], 'o', ms=6, color=COL[g], mec=BG, mew=1.5, zorder=3)
             ends[g] = np.mean([C[key][-1] / 1e6 for key in keys], axis=0)
         ks_end = ends['ks25'][0]
@@ -48,9 +50,9 @@ for r, ex in enumerate(('kobe', 'mec')):
             ax.set_xlabel('Misassigned spikes (millions)')
         if k == 0:
             ax.set_ylabel('Correctly assigned spikes (millions)')
-handles = [plt.Line2D([], [], color=COL[g], lw=2, label=NAME[g]) for g in COL]
+handles = [plt.Line2D([], [], color=COL[g], lw=2, ls=LS.get(g, '-'), label=NAME[g]) for g in COL]
 handles.append(plt.Line2D([], [], color=INK2, lw=0.8, ls=(0, (3, 3)), label="KS2.5's whole output"))
-fig.legend(handles=handles, loc='upper center', ncol=4, frameon=False, bbox_to_anchor=(0.5, 0.995))
+fig.legend(handles=handles, loc='upper center', ncol=5, frameon=False, bbox_to_anchor=(0.5, 0.995))
 fig.suptitle('Units admitted cleanest first (cross-validated across halves); dot = whole output; one line per seed',
              y=0.945, fontsize=9, color=INK2)
 fig.tight_layout(rect=(0, 0, 1, 0.93))

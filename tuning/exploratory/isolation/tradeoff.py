@@ -8,6 +8,11 @@ can't flatter itself. Admission uses the 1-SD upper bound of the half's violatio
 so units with too few spikes to judge come late; 'point' ranks by the point estimate instead, as a check.
 Sweeping the admission threshold traces a curve from the cleanest units to the whole output: a sorter
 whose curve lies above another's gives more correctly assigned spikes at every level of misassigned ones.
+
+KS2.5 is also shown before set_cutoff: the units of the traced rerun (ks25_setup/ks25_sort_traced.py,
+seed 1) at stage split1, and, as its own reference, at stage merge3 (the exported sort). Stage units are
+taken as the rerun's templates with the rerun's masked intervals dropped but no duplicate cleaning (both
+stages alike); hybrid copies are found as hybrid.py does, on the stage's spikes.
 """
 import json
 import sys
@@ -18,7 +23,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import hybrid  # noqa: E402
-from cleaning import load_clean_units  # noqa: E402
+from cleaning import FS, load_clean_units, mask_intervals  # noqa: E402
 from isolation import TAU_C, violations  # noqa: E402
 
 TAU = 1.5e-3
@@ -33,6 +38,8 @@ SETS = {
     'mec': {'default': [M / f'runs/default_s{k}' for k in (1, 2, 3)], 'ks25': [M / f'runs/ks25_standard_r{k}' for k in (1, 2, 3)],
             'H8': [M / f'runs/H8_s{k}' for k in (1, 2, 3)]},
 }
+RERUN = Path('C:/data/ks4_tuning/exploratory/ks25_traced')
+STAGES = {'ks25 pre-cut': 'split1', 'ks25 post-cut': 'merge3'}
 OUT = Path('C:/data/ks4_tuning/exploratory/isolation/tradeoff')
 RETAINED = (0.01, 0.02, 0.05, 0.10)
 
@@ -60,6 +67,34 @@ def sort_rows(sort, ex):
     if ex == 'kobe':
         copies = set(hybrid.recovery(sort, np.load(base / 'search/hybrid/hybrid_truth.npz'))['hybrid_copies'])
         by = {c: t for c, t in by.items() if c not in copies}
+    return unit_rows(by, iv)
+
+
+def stage_rows(ex, stage):
+    """Units of the traced KS2.5 rerun at one stage of autocurate (rez.st3, 1-based samples)."""
+    base = K if ex == 'kobe' else M
+    R = RERUN / f'{ex}_s1'
+    st = np.load(R / 'stages.npz')
+    s, clu = st[f'{stage}_t'].astype(np.int64) - 1, st[f'{stage}_clu'].astype(np.int64)
+    iv = mask_intervals(R, base / 'search/raw_artefacts_car.npz')
+    copies = set()
+    if ex == 'kobe':
+        tt = np.sort(np.load(base / 'search/hybrid/hybrid_truth.npz')['spike_samples'])
+        k = np.searchsorted(tt, s - hybrid.TOL, 'left')
+        hit = (k < tt.size) & (tt[np.minimum(k, tt.size - 1)] <= s + hybrid.TOL)
+        ids, idx = np.unique(clu, return_inverse=True)
+        copies = set(ids[np.bincount(idx, weights=hit) / np.bincount(idx) >= hybrid.COPY].tolist())
+    t = s / FS
+    i = np.searchsorted(iv[:, 0], t, 'right') - 1
+    keep = ~((i >= 0) & (t < iv[np.maximum(i, 0), 1])) if iv.size else np.ones(t.size, bool)
+    t, clu = t[keep], clu[keep]
+    o = np.argsort(clu, kind='stable')
+    ids, start = np.unique(clu[o], return_index=True)
+    by = {int(c): x for c, x in zip(ids, np.split(t[o], start[1:])) if int(c) not in copies}
+    return unit_rows(by, iv)
+
+
+def unit_rows(by, iv):
     T = (DUR / 2 - masked(iv, 0, DUR / 2), DUR / 2 - masked(iv, DUR / 2, DUR))
     rows = []
     for t in by.values():
@@ -93,6 +128,8 @@ def good_at_retained(mis, good, p):
 if __name__ == '__main__':
     OUT.mkdir(parents=True, exist_ok=True)
     rows = {ex: {g: [sort_rows(s, ex) for s in sorts] for g, sorts in groups.items()} for ex, groups in SETS.items()}
+    for ex in rows:
+        rows[ex].update({g: [stage_rows(ex, stage)] for g, stage in STAGES.items()})
     saved = {}
     for ex, groups in rows.items():
         for m in ('plain', 'local'):
@@ -105,8 +142,8 @@ if __name__ == '__main__':
                 at_ks_point = np.array([good_at_mis(*c, ks_mis) for c in curves['point'][g]])
                 at_half = np.array([good_at_mis(*c, ks_mis / 2) for c in cs])
                 ret = [np.array([good_at_retained(*c, p) for c in cs]) for p in RETAINED]
-                f = lambda a: f'{a.mean() / 1e6:5.2f}+-{a.std(ddof=1) / 1e6:4.2f}'  # noqa: E731
-                print(f'  {g:8s} whole output: correct {f(full_g)}, misassigned {f(full_m)} ({np.mean(full_m / (full_m + full_g)):5.1%}); '
+                f = lambda a: f'{a.mean() / 1e6:5.2f}+-{a.std(ddof=1) / 1e6:4.2f}' if a.size > 1 else f'{a[0] / 1e6:5.2f}      '  # noqa: E731
+                print(f'  {g:13s} whole output: correct {f(full_g)}, misassigned {f(full_m)} ({np.mean(full_m / (full_m + full_g)):5.1%}); '
                       f'correct at KS2.5\'s misassigned ({ks_mis / 1e6:.2f}) {f(at_ks)} [point ranking {f(at_ks_point)}], '
                       f'at half of it {f(at_half)}; at retained contamination '
                       + ', '.join(f'{p:.0%}: {f(r)}' for p, r in zip(RETAINED, ret)))
