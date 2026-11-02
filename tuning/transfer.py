@@ -10,6 +10,9 @@ the tracking circularly shifted by SHIFT_S; S should be within 2 SD of default's
 
     python transfer.py --default <sort> ... --winner <sort> ... --tracking <npz> --raw-artefacts <npz>
         --t0 13575 --duration 1200 --out <json>
+
+With --alpha, alpha is fixed instead of scanned (to score other sorts at the alpha the transfer test set,
+with any sorts as the baseline, e.g. the KS2.5 comparison of spec §14).
 """
 import argparse
 import json
@@ -56,16 +59,17 @@ if __name__ == '__main__':
     p.add_argument('--t0', type=float, required=True)
     p.add_argument('--duration', type=float, required=True)
     p.add_argument('--out', required=True)
+    p.add_argument('--alpha', type=float, help='fixed alpha (s); default: scanned on the --default sorts')
     args = p.parse_args()
     tracking = dict(np.load(args.tracking))
     run = lambda s, a, null=True, trk=tracking: position_score.score_sort(
         s['by'], s['units'], trk, args.t0, args.duration, s['mask'], a, null)
 
     defaults = [prepare(s, args.raw_artefacts, args.duration) for s in args.default]
-    scan = {a: [run(s, a, null=False)['S'] for s in defaults] for a in ALPHAS}
+    scan = {a: [run(s, a, null=False)['S'] for s in defaults] for a in ([] if args.alpha else ALPHAS)}
     for a, v in scan.items():
         print(f'alpha {a:5.2f} s: uncorrected S {np.mean(v):7.1f} ({", ".join(f"{x:.1f}" for x in v)})', flush=True)
-    alpha = max(ALPHAS, key=lambda a: np.mean(scan[a]))
+    alpha = args.alpha or max(ALPHAS, key=lambda a: np.mean(scan[a]))
     print(f'alpha = {alpha} s', flush=True)
 
     res_def = [run(s, alpha) for s in defaults]

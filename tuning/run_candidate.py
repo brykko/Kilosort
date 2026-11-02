@@ -2,7 +2,7 @@
 default, log.
 
     python run_candidate.py freeze
-        Hash the harness (tuning/*.py, the spec, the round plans, config.json), the KS4 sources
+        Hash the harness (tuning/*.py, the spec, the plans search_*.md, config.json), the KS4 sources
         (kilosort/*.py, kilosort/cuda/*.cu and the built kernel library) and the frozen inputs
         (theta_ref, raw-artefact mask, hybrid truth; hybrid excerpt by size and modification time),
         record them with the git commit in frozen.json and as the first record of the search log.
@@ -20,9 +20,10 @@ default, log.
         After a spec or harness change during the search: same checks and hashes as freeze, appended
         to the existing log as a new 'freeze' record with the reason. Later runs verify against it.
 
-Options: --phase (search, replicate, ablation, test), --existing-sort FOLDER (re-score an existing sort
-instead of sorting; used for tests and for re-scoring after a spec change), --unfrozen (skip the hash
-check; test phase only, logged to the separate test log so the search log stays clean).
+Options: --phase (search, replicate, ablation, test, comparison), --existing-sort FOLDER (re-score an
+existing sort instead of sorting; used for tests, for re-scoring after a spec change, and for sorts by
+another sorter: phase comparison, spec §14), --unfrozen (skip the hash check; test phase only, logged
+to the separate test log so the search log stays clean).
 """
 import argparse
 import hashlib
@@ -54,7 +55,7 @@ def sha256(p, chunk=1 << 24):
 
 
 def current_hashes():
-    harness = sorted([*HERE.glob('*.py'), HERE / 'evaluation_spec.md', *HERE.glob('search_round*.md'),
+    harness = sorted([*HERE.glob('*.py'), HERE / 'evaluation_spec.md', *HERE.glob('search_*.md'),
                       HERE / 'config.json'])
     ks = HERE.parent / 'kilosort'
     kilosort = sorted([*ks.glob('*.py'), *(ks / 'cuda').glob('*.cu'), *(ks / 'cuda').glob('*.dll'),
@@ -194,7 +195,7 @@ if __name__ == '__main__':
     r.add_argument('--settings', default='{}')
     r.add_argument('--seed', type=int, default=1)
     r.add_argument('--rationale', required=True)
-    r.add_argument('--phase', default='search', choices=['search', 'replicate', 'ablation', 'test'])
+    r.add_argument('--phase', default='search', choices=['search', 'replicate', 'ablation', 'test', 'comparison'])
     r.add_argument('--existing-sort')
     r.add_argument('--unfrozen', action='store_true')
     args = p.parse_args()

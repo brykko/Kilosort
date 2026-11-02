@@ -1,12 +1,12 @@
 # Kilosort 4 settings search: evaluation spec
 
-**Status:** v0.16, frozen (latest `freeze` record in the search log and `runs/frozen.json`).
+**Status:** v0.17, frozen (latest `freeze` record in the search log and `runs/frozen.json`).
 
 **Freezing:** the spec and the evaluation harness are committed together, with the commit hash and the SHA-256 of every harness file recorded in the search log. Any later change gets a new version number and a new `freeze` record stating what changed and why. A change to the score, guards or thresholds after the search has started invalidates comparisons made under the old version, and those candidates must be re-scored.
 
 **Principle:** the objective S decides how finely units are split. The guards (§7) protect only against what S can't see: artefact units, lost or merged known units, and loss of untuned cells. Duplicated spikes are removed before scoring (§6.3), and the final selection checks that a gain survives stricter duplicate removal (§9.2). A check dropped from the criteria is removed from the harness and these documents, not kept as a reported quantity.
 
-**History:** earlier versions and the reasons for each change are in git (`git log -p -- tuning/evaluation_spec.md`). v0.11 removed the checks that are no longer criteria and named the guards; v0.12 removes one more; v0.13 adds the resolution stopping rule (§9.2); v0.14 replaces the duplicate guards with a check at selection (§9.2); v0.15 names the transfer excerpt (§2, §10) and completes the tracked-position score (Appendix A: null correction, α rule, time-shift control); v0.16 records the KS4 code changes made during the search (§2, §4) and the population-decoding test (§12); no rule changes.
+**History:** earlier versions and the reasons for each change are in git (`git log -p -- tuning/evaluation_spec.md`). v0.11 removed the checks that are no longer criteria and named the guards; v0.12 removes one more; v0.13 adds the resolution stopping rule (§9.2); v0.14 replaces the duplicate guards with a check at selection (§9.2); v0.15 names the transfer excerpt (§2, §10) and completes the tracked-position score (Appendix A: null correction, α rule, time-shift control); v0.16 records the KS4 code changes made during the search (§2, §4) and the population-decoding test (§12); no rule changes. v0.17 adds the comparison with the lab's Kilosort 2.5 pipeline (§14): how its sorts are run, adapted to the harness and scored; no rule changes for KS4 sorts.
 
 ---
 
@@ -285,6 +285,23 @@ None. Settled in Phase 0: the full-population θ_ref is kept (§8.4), and wavefo
 No spike-to-heading time offset is used anywhere (§7.2).
 
 Adopted defaults (change any by editing the relevant section): θ_ref per moving theta cycle (§5.1); no Bombcell in the loop; δ_practical = 1% of default S; Bombcell-style waveform rules in the harness; 40 hybrid units including ≥ 5 differently tuned HD pairs; θ_ref accepted at circular correlation ≥ 0.8.
+
+## 14. Comparison with the lab's Kilosort 2.5 pipeline (reported, not a gate)
+
+Plan: `search_ks25.md`, frozen before the first KS2.5 sort.
+
+- **Sorter:** KS2.5 as the neuropixels pipeline runs it (Gardner et al. 2022: KS2.5 with increased clustering resolution and two cycles of automatic curation), preset "standard", from `C:\code\github
+europixels` at `6626f68`, in MATLAB R2025a (CUDA forward compatibility for the RTX 5070 Ti). `tuning/ks25_sort.m` repeats the pipeline's `runKilosortMatlab`: the same path setup, ops, channel map, steps (`preprocessDataSub`, `datashift2`, `learnAndSolve8b`, `autocurate`) and export (`rezToPhy`). Replicate k passes seed k to `learnAndSolve8b`, which sets the random order of the batches used to learn templates; the pipeline always passes 1, so replicate 1 is its sort. Three replicates per excerpt.
+- **Input:** the excerpt binaries the KS4 sorts used (kobe: the hybrid excerpt, §7.3; MEC: the transfer excerpt, §2), all 385 channels, `trange` [0, Inf]. The channel map comes from the pipeline's `probes.ChannelMap` and equals the KS4 probe file (checked for every sort), so units of both sorters share one frame. The sorter sees no tracking: the pipeline's `curationTrackingTimeRange` is stored in `rez.ops` by `autocurate` and read by nothing.
+- **Output conventions** (`tuning/ks25_sort.py`), so that the harness reads a KS2.5 sort as it reads a KS4 sort:
+  - clusters relabelled 0…n−1 over the clusters that have spikes, so that cluster c is row c of `templates.npy` (autocurate's merges leave empty templates and its splits append new ones);
+  - templates without the 21 leading zero samples `rezToPhy` pads for Phy: 61 samples, whitened, as in KS4, so the §6.4 screen applies unchanged;
+  - spike positions, which KS2.5 does not write: each unit's position is KS4's spike-position rule (`compute_spike_positions`: among the 10 channels nearest the unit's main channel, those within 100 µm, weighted by the norm of the features there) applied to the unit's whitened template, with the main channel the one with the largest L2 norm and each channel weighted by its L2 norm over time. Every spike of a unit gets the unit's position. The harness uses spike positions only through each unit's median (§6.2 span, §6.3 footprint classes, depth matching), so one position per unit loses nothing. Applied to KS4 sorts (default and H8, seed 1), the rule reproduces KS4's median spike positions to 2–3 µm (median; at most 25 µm);
+  - spike times as `rezToPhy` writes them (samples from the excerpt start). They agree with the hybrid truth to within a sample (KS2.5 about half a sample earlier than KS4), well inside every tolerance of the harness.
+- **Scoring:** §5–7, the §9.2 checks and Appendix A, unchanged.
+  - Kobe: S, S_track and the guards against the five default replicates (`run_candidate.py --phase comparison --existing-sort`, logged); H8 against KS2.5, with KS2.5's three replicates as the baseline in `compare.py` (tolerances τ from their spread); units reproduced across replicates (`reproducibility.py`); stricter duplicate cleaning (`strict_cleaning.py`).
+  - MEC: tracked-position S with its two guards, KS2.5 against default (`transfer.py`, α set on default as in §10) and H8 against KS2.5 (`transfer.py --alpha` at that α).
+- **Reading:** one sorter improves on another under the §5.4 rule against the other's replicates (on kobe δ = 28.6 and δ_track/2 = 13.6 bits/s, from default's spread); on MEC, against the baseline's spread across its replicates (§10). KS2.5's own run-to-run SD is reported.
 
 ---
 
