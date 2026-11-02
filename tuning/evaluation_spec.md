@@ -1,12 +1,12 @@
 # Kilosort 4 settings search: evaluation spec
 
-**Status:** v0.14, frozen (latest `freeze` record in the search log and `runs/frozen.json`).
+**Status:** v0.15, frozen (latest `freeze` record in the search log and `runs/frozen.json`).
 
 **Freezing:** the spec and the evaluation harness are committed together, with the commit hash and the SHA-256 of every harness file recorded in the search log. Any later change gets a new version number and a new `freeze` record stating what changed and why. A change to the score, guards or thresholds after the search has started invalidates comparisons made under the old version, and those candidates must be re-scored.
 
 **Principle:** the objective S decides how finely units are split. The guards (§7) protect only against what S can't see: artefact units, lost or merged known units, and loss of untuned cells. Duplicated spikes are removed before scoring (§6.3), and the final selection checks that a gain survives stricter duplicate removal (§9.2). A check dropped from the criteria is removed from the harness and these documents, not kept as a reported quantity.
 
-**History:** earlier versions and the reasons for each change are in git (`git log -p -- tuning/evaluation_spec.md`). v0.11 removed the checks that are no longer criteria and named the guards; v0.12 removes one more; v0.13 adds the resolution stopping rule (§9.2); v0.14 replaces the duplicate guards with a check at selection (§9.2).
+**History:** earlier versions and the reasons for each change are in git (`git log -p -- tuning/evaluation_spec.md`). v0.11 removed the checks that are no longer criteria and named the guards; v0.12 removes one more; v0.13 adds the resolution stopping rule (§9.2); v0.14 replaces the duplicate guards with a check at selection (§9.2); v0.15 names the transfer excerpt (§2, §10) and completes the tracked-position score (Appendix A: null correction, α rule, time-shift control).
 
 ---
 
@@ -26,7 +26,8 @@ The claim the procedure supports is narrow: *on this 20-minute excerpt, the winn
 | Behaviour | Motive rigid-body tracking, 120 Hz (used only by the harness, for S_track and Phase 0) |
 | Reference sort | Default KS4 sort of the excerpt without hybrid insertion, reserved seed 1000 (§4, §5.1, §8.11) |
 | KS4 base | Branch `perf-optimizations` at `e28143c`: this fork at `0e07514` (includes the `swarmsplitter.check_CCG` refractoriness fix, 549ec32, which no release tag contains yet), plus the seed patch (§4, `5c84988`) and performance changes (`e28143c`; `perf_audit/README.md`). The performance changes are bit-identical to `0e07514` for default settings except where KS4 itself raced (≈ 0.01% of cluster labels on the excerpt), and make a sort bit-reproducible for a given seed; a default sort takes ≈ 6.5 min instead of ≈ 17. The fused CUDA kernels reproduce cuBLAS's summation order only for KS4's default `nearest_chans`, `template_sizes` and `n_templates`; other values use a generic path that can differ from stock KS4 by ~1 ulp. Plots are skipped (`make_plots=False`). Sorts import KS4 from this checkout only (editable install). Each run folder records its commit, code diff and kernel-library hash in `provenance.json`. The reference sorts (§5.1) were made at `0e07514` plus the seed patch; θ_ref is frozen, so this does not affect comparisons. |
-| Transfer recording | MEC open-field recording: Neuropixels 3A, 374 channels, ~2 h, 1.5 × 1.5 m arena (§10) |
+| Transfer recording | MEC open-field recording: rat 25843 ("roger"), 2019-09-11, `moser:sweeps/richarga/data/roger_25843/rec/2019-09-11_20-59-06/` (open-field session 1, 7457–14778 s), `probe_1` (the probe with the most direction-coding cells; the sync master, so synced time of sample i is (i + 1) / 30000 s). Neuropixels 3A, option 3, bank 0: 374 recording sites over 220–4040 µm; 1.5 × 1.5 m arena (§10) |
+| Transfer excerpt | Synced 13575–14775 s (the last 20 minutes of open-field session 1, before an untwisting break), 27.72 GB; `C:\data\ks4_tuning\25843_roger_2019-09-11\search\` (`ap_13575-14775s.bin` with manifest, `tracking_13575-14775s.npz`, `probe_3a_opt3.json`) |
 
 ### 2.1 Excerpt
 
@@ -248,8 +249,8 @@ Not counted in the search budget. The search may not start until every item pass
 
 ## 10. Transfer test: MEC open-field recording (reported, not a gate)
 
-- Sort the MEC search excerpt (minutes 20–40) with default and winner, 3 seeds each.
-- Score with tracked-position S (Appendix A) plus the eligible-units and untuned-units guards (§7.1).
+- Sort the MEC transfer excerpt (§2) with default and winner, 3 seeds each.
+- Score with tracked-position S (Appendix A) plus the eligible-units and untuned-units guards (§7.1). The winner is judged against default's spread across its own seeds on that excerpt.
 - If the winner does not beat default there, treat the settings as specific to the target recording: do not apply them to the MEC data without a search of its own under this spec.
 
 ## 11. Log (append-only)
@@ -290,4 +291,8 @@ Adopted defaults (change any by editing the relevant section): θ_ref per moving
 
 ## Appendix A. Tracked-position score (transfer test, §10)
 
-Unchanged from v0.1 §5. Per unit, λ_i(z) = r_i · P_i(x) · H_i(θ) · V_i(v), with position in 5 cm bins (Gaussian smoothing σ = 5 cm), head direction in 10° bins (σ = 15°) and speed in 5 cm/s bins over 5–50 cm/s (σ = 5 cm/s). Factors are fitted on the training segment by iterative proportional fitting and shrunk towards 1 by α, set by time-shift control on the MEC default sort. S_i uses Δ = 1/120 s, samples with valid tracking and speed ≥ 5 cm/s, and the masks of §6.1–6.2 computed on the MEC excerpt. S = Σ_i S_i in bits/s, averaged over both directions.
+`tuning/position_score.py`, run by `tuning/transfer.py`. Per unit, λ_i(z) = r_i · P_i(x) · H_i(θ) · V_i(v), with position in 5 cm bins (Gaussian smoothing σ = 5 cm), head direction in 10° bins (σ = 15°, circular) and speed in 5 cm/s bins over 5–50 cm/s (σ = 5 cm/s; faster frames in the top bin). Speed is computed as for θ_ref (§5.1: position smoothed with a 0.5 s Gaussian). Factors are fitted on one time half by iterative proportional fitting, each shrunk towards 1 by α seconds of pseudo-occupancy at the unit's mean rate, and scored on the other half, as in §5.3, on the tracking frames (Δ ≈ 1/120 s) with valid tracking and speed ≥ 5 cm/s. The masks of §6.1–6.2 are computed on the MEC excerpt and treated as in §5.3 (a frame more than 50% masked is dropped, otherwise its duration is scaled). S = Σ_i S_i in bits/s, both halves scored and weighted by test time.
+
+- **Null correction**, as in §5.2: each unit's mean score with the behavioural covariates rotated among the scored frames by k/7 of their number (k = 1…6) is subtracted, so an untuned unit scores about zero. Uncorrected, a sort with more units would pay more cross-validation penalty, which would bias the test against a higher-resolution winner.
+- **α:** among 0.0625, 0.25, 1, 4 and 16 s, the value with the highest mean held-out S *without* the null correction on the default sorts (the regulariser that best predicts held-out spiking), set before the winner is scored. **Time-shift control** at that α: the default sorts scored with the tracking circularly shifted by 300 s should give S within 2 SD (default's SD across seeds) of 0.
+- **Guards** (§7.1): eligible units and untuned units, against the default sorts of the MEC excerpt. There is no hybrid insertion on the MEC excerpt and no θ_ref.

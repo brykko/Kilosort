@@ -25,7 +25,8 @@ run them.
 | `stage_cache.py` | Stage cache: reuses drift correction, first detection and (when only later settings differ) first clustering and template matching; bit-identical to full sorts |
 | `cleaning.py` | Multi-unit events, duplicate test, masks (§6.1–6.3) |
 | `waveform.py` | Bombcell noise screen (§6.4) |
-| `score.py` | S, S_track, C, eligibility (§5, §7.2, §7.5) |
+| `score.py` | S, S_track, eligibility (§5, §6.4, §7.2) |
+| `position_score.py`, `transfer.py` | Transfer test: tracked-position S and its guards on the MEC excerpt (§10, Appendix A) |
 | `evaluate.py` | Per-sort evaluation (`evaluation.json`) |
 | `compare.py` | Guards against default replicates, matched units (§7) |
 | `hybrid.py`, `make_hybrid.py` | Hybrid ground truth: scoring and construction (§7.3) |
