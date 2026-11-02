@@ -16,6 +16,7 @@ run them.
 | `search_round2.md` | Round 2 plan (early splitting kept clean; merge-tree fixes) |
 | `round2_results.md` | Round 2 results |
 | `search_round3.md` | Round 3 plan (detection, features, drift) |
+| `round3_results.md` | Round 3 results |
 | `config.json` | Paths and fixed parameters used by the wrapper |
 | `run_candidate.py` | Wrapper: `freeze`, and `run` (sort → clean → evaluate → compare → log) |
 | `run_sort.py` | One KS4 sort from this checkout, with `provenance.json`; `--cache` reuses unaffected stages |
