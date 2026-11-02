@@ -25,10 +25,10 @@ Four search rounds, ablation and the transfer test are done (spec v0.16). **Winn
 - **MEC transfer excerpt:** position ΔS +977 bits/s (+50%) with both guards passing
   ([transfer_results.md](transfer_results.md)).
 - **Path there:** round 1 found that stock KS4 merges too much (relaxing the merge tree gained most);
-  round 2 set the graph resolution and the
-  final merge (with the reproducibility stopping rule); round 3 lowered the detection thresholds;
-  round 4 doubled the landmark spikes in the first clustering pass. Preprocessing, universal-template
-  shapes, features and drift settings made no useful difference.
+  round 2 set the graph resolution and the final merge (with the reproducibility stopping rule);
+  round 3 lowered the detection thresholds; round 4 doubled the landmark spikes in the first
+  clustering pass. Preprocessing, universal-template shapes, features and drift settings made no
+  useful difference.
 - **Not done:** the downstream single-cell and population analyses and the §8.9 inspection of the
   winner's sort (§9.4).
 
