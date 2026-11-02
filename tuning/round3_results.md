@@ -62,3 +62,32 @@ Units reproduced across seeds: D5 ~960 (63%), D1 ~880 (58%), C1 ~940 (58%).
 ## Budget
 
 36 search runs in round 3 (30 screen, 6 combination and extension); 124 sorts in all over three rounds (2 of them stopped), plus 54 re-scores of existing sorts.
+
+## Ablation of C1 (spec §9.3)
+
+Each of C1's six changes reverted to its default on its own, three seeds (two reversions are round 3
+screen runs: reverting `Th_universal` gives D1, reverting `Th_learned` gives D5). Cost = C1's mean ΔS
+minus the reversion's; δ/2 = 14.3.
+
+| Reverted | To | ΔS seeds 1, 2, 3 | Mean ΔS | Cost | Paired costs | Eligible |
+|---|---|---|---|---|---|---|
+| `merge_bimodality_threshold` 0 (A1) | 0.6 | +60.4, +30.9, +54.2 | +48.5 | 322.1 | 309, 344, 314 | ~850 |
+| `merge_correlation_threshold_2` 0.95 (A4) | 0.5 | +239.0, +246.1, +236.1 | +240.4 | 130.2 | 131, 128, 132 | ~1445 |
+| `cluster_resolution` 2.0 (A2) | None | +321.6, +323.1, +327.6 | +324.1 | 46.5 | 48, 51, 40 | ~1250 |
+| `Th_universal` 7 (D1) | 9 | +317.8, +330.1, +326.2 | +324.7 | 45.9 | 52, 44, 42 | ~1515 |
+| `Th_learned` 7 (D5) | 8 | +346.5, +346.0, +337.1 | +343.2 | 27.4 | 23, 28, 31 | ~1525 |
+| `merge_correlation_threshold_1` 0.975 (A3) | 0.9 | +362.1, +384.4, +359.2 | +368.6 | **2.0** | 7, −10, 9 | ~1580 |
+
+Every reversion passed every guard on every seed. Only the stricter first merge costs less than
+δ/2 to remove (2.0, within the seed-to-seed spread), so it is dropped. Round 2 had kept it because it
+reduced duplicate cleaning; the stricter-cleaning check below covers that.
+
+**Simplified winner W:** `merge_bimodality_threshold` 0, `cluster_resolution` 2.0,
+`merge_correlation_threshold_2` 0.95, `Th_universal` 7, `Th_learned` 7. Its three replicates are
+A3's: ΔS +362.1, +384.4, +359.2, **mean +368.6** (ΔS_track +319.4), every guard passing on every seed,
+32–33 of 40 hybrid units recovered.
+
+- **Stricter duplicate cleaning** (§9.2): S drops by 23.8 for W and 24.0 for default; W stays
+  **+368.8** over default re-scored the same way.
+- **Units reproduced across seeds** (seeds 1–2): ~950 (60.6% and 59.3% of 1569 and 1605), against
+  ~940 for C1.
