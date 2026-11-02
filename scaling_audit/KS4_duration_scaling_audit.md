@@ -35,7 +35,7 @@ Data: kobe excerpt `26648_kobe_2020-08-21` (20 min, hybrid version with 40 inser
 | Templates (whole-recording mean, frozen) | **length-dependent (data)** | mismatch grows with template age: own-half advantage 0.2% (kobe) vs 0.7% (MEC) at ~10 min age (measured); ~3–7% spikes lost at 5 h in MEC (extrapolated) | data-dependent, low–medium |
 | Detection thresholds, peel limit, features | invariant per batch | — | — |
 | 'good' label | weakly length-dependent | ~4% (default) / ~8% (winner) of labels differ from a 20-min sort; band sharpens around 10.6% contamination | low–medium |
-| Host RAM | **length-dependent, fails** | doubling buffers: ~75 GB transient at ~2.4 h (default) / ~1.8 h (winner); 5 h ≈ 150 GB | **high (OOM on 63 GB)** |
+| Host RAM | **length-dependent, fails** | doubling buffers: ~75 GB transient at ~2.4 h (default) / ~1.8 h (winner); 5 h ≈ 150 GB (KS2.5, projected: ~3.2 h on 63 GB, ~97 GB at 5 h) | **high (OOM on 63 GB)** |
 | Time | ~linear (+30% at 5 h) | ~24 / 82 / 140 min at 1 / 3 / 5 h on this machine (projection) | — |
 | VRAM | fine to 5 h, one exception | `align_U` OOMs at ~13k pass-1 templates | low unless pass-1 count grows |
 | int32 overflow | none to 5 h | — | — |
@@ -196,6 +196,25 @@ cap is justified as keeping neighbourhoods "comparable for short and long record
   docs' "~300 GB for ~13 h". Cheap fixes (not applied): grow by 1.5× or preallocate from the batch count; free the
   universal `tF` before `template_matching.extract`; don't keep `st0`/`clu0` without plots; gather pc_features per
   cluster.
+- **Comparison with KS2.5** (the pipeline's copy, `neuropixels\ExternalToolboxes\KilosortToolbox\Versions\kilosort_v2.5`,
+  `mainLoop/trackAndSort.m:103-113, 219-225, 265-275` and `mainLoop/runTemplates.m:41-51`; code read only, not
+  measured):
+
+  | | KS2.5 (pipeline copy) | KS4 |
+  |---|---|---|
+  | per-spike storage | `st3` 5 × f64 = 40 B (+ `rez.st2` copy), `fW` 32 template features × f32 = 128 B, `fWpc` 32 ch × 3 PCs × f32 = 384 B → **~550 B** | st 24–48 B + tF 240 B → **~265 B**, plus the universal-pass tF kept alive |
+  | buffer growth | preallocated 1e7 spikes (~5.5 GB), then ×`arrayExpandFactor` = 1.2 (pipeline config `kilosort_config_v2_1`, inherited by v2_5; upstream KS2/2.5 doubles) → transient ~1.9× steady, near-linear curve | doubling from 1e6 → transient 4× the old feature buffer, stepwise curve |
+  | end-of-pass copies | trim, sort, then `permute(fWpc)` (code comment: "may fail if there's little free memory") | `tF[isort]` |
+  | spikes kept per 20 min | 6.2M (kobe), 5.4M (MEC) | 8.7M (kobe), 8.1M (MEC) |
+  | transient peak per spike | ~1 KB | ~1 KB (learned pass) |
+
+  Projected peak RAM at kobe spike rates (KS4 default / KS2.5): 20 min ~11 / ~8 GB (KS2.5 dominated by its 1e7
+  preallocation); 1 h ~22 / ~19 GB; ~2.4 h ~75 / ~47 GB; 3 h ~76 / ~58 GB; 5 h ~150 / ~97 GB. On 63 GB, KS4 runs into
+  trouble at ~2.4 h (winner ~1.8 h) and KS2.5 at ~3.2 h; neither handles 5 h. The gap comes from KS4 detecting ~40% more
+  spikes and from its doubling, not from per-spike storage, where KS2.5 is about twice as heavy. KS2.5's figures are
+  less certain than KS4's (MATLAB copy-on-write and when copies are freed were not checked); if KS2.5 has run 3–5 h
+  recordings on less than ~100 GB without trouble, that is evidence against them. Neither sorter's VRAM grows with
+  length. KS2.5's Phy export writes 384 B/spike of `pc_features.npy` (~21 GB at 3 h).
 - **KS4's logged "sys" memory** (14–17 GB → 28–30 GB over a 20-min sort) is system-wide used RAM, a snapshot not a
   peak; ~8–10 GB of the rise is not live arrays (file cache / allocator / other processes).
 - **Time**: ~linear; superlinear terms are faiss kNN (∝ n·landmarks per group until the cap) and `bin_spikes` (T²).
