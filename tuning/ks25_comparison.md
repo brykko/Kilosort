@@ -20,26 +20,32 @@ default on kobe and 7 SD better on MEC.
 
 Means over replicates ± SD across them (default kobe: five seeds; the others three).
 
-**Bayesian decoding** (spec §14, `bayes_decode.py`): median error of tracked head direction and 2D
-position, decoded from each sort's eligible units, cross-validated over the time halves; every sort of
-an excerpt is decoded on the same windows. Lower is better; mean over replicates (SD across replicates
-0.03–0.3).
+**Population decoding** (spec §14): median error of tracked head direction (°) and 2D position (cm),
+decoded from each sort's eligible units, cross-validated over the time halves, every sort of an excerpt
+on the same windows. Three decoders: Bayesian (independent Poisson units, `bayes_decode.py`) and
+population-vector correlation, with units weighted by rate ('raw') or z-scored ('z', `corr_decode.py`).
+Lower is better; mean over replicates (SD across replicates 0.03–0.5); best at 20 ms in bold.
 
-| Excerpt | Decoded (window) | KS4 default | KS2.5 standard | H8 | H8 − KS2.5 |
-|---|---|---|---|---|---|
-| Kobe | Direction (20 ms) | 12.3° | 12.6° | 11.4° | **−1.2°** |
-| Kobe | Direction (100 ms) | 9.0° | 9.7° | 9.1° | −0.6° |
-| Kobe | Position (20 ms) | 29.2 cm | 27.0 cm | 25.4 cm | **−1.6 cm** |
-| Kobe | Position (100 ms) | 13.9 cm | 13.6 cm | 13.2 cm | −0.4 cm |
-| MEC | Direction (20 ms) | 18.0° | 18.0° | 16.3° | **−1.7°** |
-| MEC | Direction (100 ms) | 11.9° | 12.3° | 11.5° | −0.8° |
-| MEC | Position (20 ms) | 26.9 cm | 21.9 cm | 23.1 cm | **+1.2 cm** |
-| MEC | Position (100 ms) | 13.0 cm | 12.0 cm | 12.7 cm | +0.7 cm |
+| Excerpt | Decoded | Decoder | Default 20 ms | KS2.5 20 ms | H8 20 ms | Default 100 ms | KS2.5 100 ms | H8 100 ms |
+|---|---|---|---|---|---|---|---|---|
+| Kobe | Direction | Bayesian | 12.3 | 12.6 | **11.4** | 9.0 | 9.7 | 9.1 |
+| | | Correlation, raw | 13.8 | 14.9 | **11.6** | 8.3 | 9.0 | 7.6 |
+| | | Correlation, z | **13.3** | 14.6 | 13.7 | 9.1 | 10.4 | 9.7 |
+| Kobe | Position | Bayesian | 29.2 | 27.0 | **25.4** | 13.9 | 13.6 | 13.2 |
+| | | Correlation, raw | 39.9 | 44.4 | **35.9** | 18.3 | 20.4 | 17.2 |
+| | | Correlation, z | 28.2 | 28.0 | **26.7** | 15.3 | 15.1 | 15.3 |
+| MEC | Direction | Bayesian | 18.0 | 18.0 | **16.3** | 11.9 | 12.3 | 11.5 |
+| | | Correlation, raw | 20.3 | 22.0 | **18.6** | 11.4 | 12.3 | 11.9 |
+| | | Correlation, z | 20.7 | 20.5 | **20.2** | 13.1 | 13.3 | 13.2 |
+| MEC | Position | Bayesian | 26.9 | **21.9** | 23.1 | 13.0 | 12.0 | 12.7 |
+| | | Correlation, raw | 38.3 | 40.6 | **37.0** | 16.2 | 17.1 | 18.1 |
+| | | Correlation, z | 28.2 | 26.3 | **25.3** | 15.8 | 15.1 | 15.2 |
 
-Decoding separates the sorters far less than S does. Direction is saturated at 100 ms (all three within
-0.7°), and position nearly so; at 20 ms, the least saturated window, H8 decodes direction best on both
-recordings and position best on kobe, but **KS2.5 decodes MEC position best**, although H8's position
-S there is 878 bits/s higher (see Bayesian decoding below).
+Decoding separates the sorters far less than S does. At 100 ms direction is saturated and position
+nearly so, and which sorter leads depends on the decoder. At 20 ms, the least saturated window, H8
+decodes best (or ties, MEC direction with z) in 10 of the 12 cases; default KS4 leads for kobe
+direction with the z-scored correlation decoder, and KS2.5 for MEC position with the Bayesian decoder
+only. With either correlation decoder H8 decodes MEC position best (see Population decoding below).
 
 ## Kobe (search excerpt, hybrid)
 
@@ -122,7 +128,9 @@ Mean ΔS +878.3 (+43%, 48 SD of KS2.5 across its replicates).
 **Units reproduced across replicates:** KS2.5 ~652 (645, 655, 656; 73–75% of ~882 eligible), against
 ~610 for default (82–84%) and ~900 for H8 (48–51%).
 
-## Bayesian decoding (both excerpts)
+## Population decoding (both excerpts)
+
+### Bayesian
 
 Plan: [search_ks25.md](search_ks25.md) §6. Poisson decoder with independent units, flat prior and the
 posterior maximum (Zhang et al. 1998); direction in 6° bins, position in 5 cm bins; tuning fitted on one
@@ -166,10 +174,75 @@ units, mean over 10 draws and the replicates; "all" is every eligible unit):
   less information than a random default unit, as S also shows: the units H8 adds over default carry
   about 0.4 bits/s each on kobe and 0.9 on MEC, against 1.3 and 2.6 for an average default unit. H8
   reaches the others' error through its larger number of units.
-- **Decoding and S rank MEC position differently.** S adds up each unit's own information; a decoder's
-  error depends on how the units' information combines, and on the noise each weakly tuned unit's fitted
-  map adds. The two can rank sorts differently when the added units are weak or carry information the
-  others already have. Which of these explains KS2.5's better MEC position decoding has not been tested.
+- **Bayesian decoding and S rank MEC position differently.** S adds up each unit's own information; a
+  Poisson decoder multiplies the units' likelihoods as if they were independent, so units that repeat
+  others' information make it overconfident, and each weakly tuned unit's fitted map adds noise. The
+  correlation decoders below, which don't multiply evidence across units, rank H8 first for MEC position
+  at 20 ms.
+
+### Correlation
+
+Plan: [search_ks25.md](search_ks25.md) §7. Each window's spike-count vector is correlated (Pearson,
+across units) with every visited bin's expected vector from the training maps, and the best-correlated
+bin is the estimate; same units, maps, halves and windows as the Bayesian decoder. 'raw' uses counts and
+maps as they are, so high-rate units weigh most; 'z' z-scores each unit first (counts over the half's
+decoded windows, maps over the bins), so every unit weighs the same. Results: `runs\corr_decode.json` in
+each data folder.
+
+**Median error, all three windows** (mean over replicates; 20 / 100 / 500 ms):
+
+| Excerpt | Decoded | Variant | KS4 default | KS2.5 standard | H8 |
+|---|---|---|---|---|---|
+| Kobe | Direction (°) | raw | 13.8 / 8.3 / 5.6 | 14.9 / 9.0 / 5.9 | 11.6 / 7.6 / 5.2 |
+| | | z | 13.3 / 9.1 / 6.5 | 14.6 / 10.4 / 7.0 | 13.7 / 9.7 / 6.7 |
+| Kobe | Position (cm) | raw | 39.9 / 18.3 / 12.6 | 44.4 / 20.4 / 13.2 | 35.9 / 17.2 / 12.5 |
+| | | z | 28.2 / 15.3 / 12.2 | 28.0 / 15.1 / 12.0 | 26.7 / 15.3 / 12.4 |
+| MEC | Direction (°) | raw | 20.3 / 11.4 / 8.6 | 22.0 / 12.3 / 9.4 | 18.6 / 11.9 / 9.5 |
+| | | z | 20.7 / 13.1 / 10.6 | 20.5 / 13.3 / 10.1 | 20.2 / 13.2 / 10.3 |
+| MEC | Position (cm) | raw | 38.3 / 16.2 / 12.8 | 40.6 / 17.1 / 13.3 | 37.0 / 18.1 / 15.0 |
+| | | z | 28.2 / 15.8 / 13.2 | 26.3 / 15.1 / 12.6 | 25.3 / 15.2 / 12.9 |
+
+**Equal unit counts** (100 ms; median error with N randomly drawn eligible units, mean over 10 draws and
+the replicates):
+
+| Excerpt | Decoded | Variant | Sorter | 25 | 50 | 100 | 200 | 400 | 800 | 1600 | all |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Kobe | Direction (°) | raw | default | 35.5 | 23.8 | 16.8 | 12.1 | 9.8 | | | 8.3 |
+| | | | KS2.5 | 39.7 | 28.2 | 20.0 | 14.4 | 11.1 | 9.1 | | 9.0 |
+| | | | H8 | 42.7 | 29.2 | 21.3 | 15.3 | 10.8 | 9.0 | 7.7 | 7.6 |
+| | | z | default | 32.0 | 21.3 | 15.6 | 12.1 | 10.2 | | | 9.1 |
+| | | | KS2.5 | 37.5 | 25.6 | 18.9 | 14.1 | 11.9 | 10.5 | | 10.4 |
+| | | | H8 | 44.7 | 32.4 | 22.4 | 16.7 | 12.8 | 10.9 | 9.8 | 9.7 |
+| Kobe | Position (cm) | raw | default | 65.1 | 54.0 | 40.2 | 27.3 | 21.3 | | | 18.3 |
+| | | | KS2.5 | 66.7 | 57.4 | 47.9 | 34.8 | 25.3 | 20.9 | | 20.4 |
+| | | | H8 | 69.0 | 60.7 | 48.7 | 36.2 | 25.3 | 20.0 | 17.4 | 17.2 |
+| | | z | default | 57.7 | 44.4 | 29.8 | 20.5 | 16.7 | | | 15.3 |
+| | | | KS2.5 | 61.3 | 48.4 | 34.4 | 22.8 | 17.5 | 15.4 | | 15.1 |
+| | | | H8 | 64.3 | 55.7 | 41.4 | 27.8 | 20.5 | 17.0 | 15.5 | 15.3 |
+| MEC | Direction (°) | raw | default | 44.7 | 32.0 | 23.1 | 16.4 | 13.3 | | | 11.4 |
+| | | | KS2.5 | 46.9 | 38.2 | 27.4 | 19.3 | 15.6 | 12.7 | | 12.3 |
+| | | | H8 | 51.0 | 40.9 | 30.1 | 25.0 | 17.1 | 14.2 | 12.2 | 11.9 |
+| | | z | default | 41.3 | 30.1 | 22.1 | 17.0 | 14.4 | | | 13.1 |
+| | | | KS2.5 | 45.9 | 33.5 | 24.1 | 18.4 | 15.4 | 13.5 | | 13.3 |
+| | | | H8 | 53.4 | 43.7 | 31.2 | 23.8 | 18.2 | 15.2 | 13.5 | 13.2 |
+| MEC | Position (cm) | raw | default | 57.5 | 49.8 | 40.6 | 28.3 | 20.6 | | | 16.2 |
+| | | | KS2.5 | 57.6 | 51.0 | 41.5 | 32.9 | 23.5 | 17.8 | | 17.1 |
+| | | | H8 | 61.9 | 55.9 | 49.1 | 40.7 | 28.1 | 22.1 | 18.8 | 18.1 |
+| | | z | default | 54.6 | 45.8 | 35.2 | 23.9 | 18.2 | | | 15.8 |
+| | | | KS2.5 | 56.6 | 47.9 | 36.5 | 26.0 | 18.8 | 15.3 | | 15.1 |
+| | | | H8 | 60.2 | 54.7 | 45.3 | 33.5 | 22.9 | 17.8 | 15.5 | 15.2 |
+
+- **Correlation decoding is less accurate than Bayesian** in most cases: at 100 ms position by 1.4–3.1 cm
+  with z and 3.2–6.8 cm with raw, direction by 0.1–1.7° with z. The exception is direction with raw,
+  0.7–1.5° better than Bayesian on kobe and within 0.5° on MEC.
+- **At 20 ms H8 leads with both variants** except kobe direction with z (default 13.3° against H8's
+  13.7°); for MEC position it leads with both (25.3 cm against 26.3 for KS2.5 with z; 37.0 against 38.3
+  for default with raw), where the Bayesian decoder put KS2.5 first.
+- **At longer windows the variants disagree:** raw, which lets high-rate units dominate, puts H8 last
+  for MEC position at 100 and 500 ms (18.1 and 15.0 cm against 16.2 and 12.8 for default; H8 has ~445
+  units above 5 Hz, against ~300 for default and ~140 for KS2.5), while z ranks the three within 0.7 cm.
+- **At equal unit counts H8's units again decode worse**, with both variants, and its full population
+  catches up through numbers, as with the Bayesian decoder.
 
 ## What the comparison shows
 
@@ -182,10 +255,11 @@ units, mean over 10 draws and the replicates; "all" is every eligible unit):
   recordings: KS2.5 is about δ behind on kobe and ~7 SD ahead on MEC.
 - **KS2.5's units reproduce less often than default KS4's** (69–75% against 82–85%) but more often than
   H8's (48–60%); in number, H8 reproduces ~1.4–1.6 times as many units as KS2.5.
-- **Bayesian decoding barely separates the three sorters.** Direction saturates at 100 ms windows and
-  position nearly so; at 20 ms H8 decodes best in three of the four cases (by 1.2–1.7° or 1.6 cm) and
-  KS2.5 decodes MEC position best (by 1.2 cm). H8's large S gain shows up in decoding only as a small
-  improvement, and not at all for MEC position.
+- **Population decoding barely separates the three sorters.** Direction saturates at 100 ms windows
+  and position nearly so, and the order there depends on the decoder. At 20 ms H8 decodes best or ties
+  in 10 of 12 decoder and variable combinations, by 0.3–2.2° or 1.0–4.0 cm; KS2.5's lead for MEC
+  position appears only with the Bayesian decoder. H8's large S gain shows up in decoding as a small
+  improvement.
 
 ## Sorter notes
 
@@ -229,5 +303,5 @@ Kobe scoring (`<K>` = `C:\data\ks4_tuning\26648_kobe_2020-08-21`):
   folders under `strict_cleaning\`).
 - MEC (`C:\data\ks4_tuning\25843_roger_2019-09-11\runs\`): `ks25_standard_r{1,2,3}\`,
   `transfer_ks25.json`, `transfer_H8_vs_ks25.json`, `reproducibility_ks25.json`.
-- Both: `bayes_decode.json` (Bayesian decoding of every sort; command in
-  [search_ks25.md](search_ks25.md) §6).
+- Both: `bayes_decode.json` and `corr_decode.json` (Bayesian and correlation decoding of every sort;
+  commands in [search_ks25.md](search_ks25.md) §6–7).

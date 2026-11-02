@@ -29,8 +29,9 @@ done (spec v0.17). **Winner** (H8,
   [ks25_comparison.md](ks25_comparison.md)): H8 beats it by ΔS +423.6 (ΔS_track +358.3) on kobe and by
   +878.3 bits/s of position information on MEC (+43% on each), every guard passing. KS2.5 and default
   KS4 are close: KS2.5 is about δ below default on kobe (ΔS −30.7) and above it on MEC (+99.0).
-  Bayesian decoding separates the three far less: direction saturates at 100 ms windows; at 20 ms H8
-  decodes best in three of four cases, but KS2.5 decodes MEC position best (21.9 against 23.1 cm).
+  Population decoding (Bayesian, and population-vector correlation raw and z-scored) separates the
+  three far less: direction saturates at 100 ms windows; at 20 ms H8 decodes best or ties in 10 of 12
+  cases, and KS2.5's lead for MEC position appears only with the Bayesian decoder.
 - **Path there:** round 1 found that stock KS4 merges too much (relaxing the merge tree gained most);
   round 2 set the graph resolution and the final merge (with the reproducibility stopping rule);
   round 3 lowered the detection thresholds; round 4 doubled the landmark spikes in the first
@@ -81,7 +82,7 @@ done (spec v0.17). **Winner** (H8,
 | `peel_diagnostic.py` | Whether template matching's peel limit binds |
 | `reproducibility.py` | Fraction of a sort's eligible units that reappear in another seed of the same settings |
 | `popdecode.py`, `popdecode_test.py`, `popdecode_track.py` | Population decoding as an alternative objective (round 3; not adopted, spec §12) |
-| `bayes_decode.py` | Bayesian decoding of head direction and 2D position, reported in the KS2.5 comparison (§14) |
+| `bayes_decode.py`, `corr_decode.py` | Bayesian and population-vector correlation decoding of head direction and 2D position, reported in the KS2.5 comparison (§14) |
 | `ring_reference.py` | Superseded HMM reference (kept for the record) |
 
 **Data and results** (`C:\data\ks4_tuning\26648_kobe_2020-08-21\`):
@@ -106,7 +107,7 @@ done (spec v0.17). **Winner** (H8,
 | `runs\strict_cleaning_*.json`, `runs\strict_cleaning\` | Stricter-cleaning re-scores (§9.2) and their hard-linked shadow sort folders |
 | `runs\round2_oversplit_R4_s1.json`, `runs\round2_tree_diagnostic.json`, `runs\round3_peel_diagnostic.json` | Round diagnostics |
 | `runs\popdecode_*.json` | Population-decoding test (spec §12) |
-| `runs\ks25_standard_r1..3\`, `runs\ks25_comparison\`, `runs\reproducibility_ks25.json`, `runs\reproducibility_default.json`, `runs\strict_cleaning_ks25.json`, `runs\bayes_decode.json` | KS2.5 comparison (§14): sorts, H8 against KS2.5, units reproduced across replicates (KS2.5 and default), stricter cleaning, Bayesian decoding |
+| `runs\ks25_standard_r1..3\`, `runs\ks25_comparison\`, `runs\reproducibility_ks25.json`, `runs\reproducibility_default.json`, `runs\strict_cleaning_ks25.json`, `runs\bayes_decode.json`, `runs\corr_decode.json` | KS2.5 comparison (§14): sorts, H8 against KS2.5, units reproduced across replicates (KS2.5 and default), stricter cleaning, population decoding |
 | `search\stage_cache\` | Stage cache; entries can be deleted at any time (a miss recomputes them). Pruned on 2026-11-02 to the winner's entries |
 
 **Transfer test data** (`C:\data\ks4_tuning\25843_roger_2019-09-11\`, spec §2 and §10):
@@ -118,7 +119,7 @@ done (spec v0.17). **Winner** (H8,
 | `tracking_source\motive\` | Local copy of the session's Motive files (input to `extract_tracking.py`) |
 | `runs\default_s1..3\`, `runs\H8_s1..3\` | Default and winner sorts (`run_sort.py`, no stage cache) |
 | `runs\transfer.json`, `runs\reproducibility.json` | Transfer scores and guards (`transfer.py`), units reproduced across seeds |
-| `runs\ks25_standard_r1..3\`, `runs\transfer_ks25.json`, `runs\transfer_H8_vs_ks25.json`, `runs\reproducibility_ks25.json`, `runs\bayes_decode.json` | KS2.5 comparison (§14): sorts, KS2.5 and H8 against default, H8 against KS2.5, units reproduced, Bayesian decoding |
+| `runs\ks25_standard_r1..3\`, `runs\transfer_ks25.json`, `runs\transfer_H8_vs_ks25.json`, `runs\reproducibility_ks25.json`, `runs\bayes_decode.json`, `runs\corr_decode.json` | KS2.5 comparison (§14): sorts, KS2.5 and H8 against default, H8 against KS2.5, units reproduced, population decoding |
 
 ## Environments
 
