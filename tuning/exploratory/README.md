@@ -55,6 +55,21 @@ assumes independent spikes, 'local' takes the pair density from the unit's own a
 | `make_variants.py`, `score_variants.sh`, `summarise_variants.py` | S of the cut sorts (H8 at widths 2 and 4, default at 4; seed 1) with the harness's `evaluate.py`/`compare.py` (kobe) and `transfer.py` (MEC), outside `run_candidate.py`, against a matched random control (in each unit, as many spikes as the cut removed there, drawn at random; three draws) |
 | `placement_audit.md` | Where in KS4 a `set_cutoff`-like step could go and what it would do at each point: a five-agent brainstorming audit with read-only checks on the scored sorts (the check scripts were not kept), and a staged test plan |
 
+## `duplicates\`: duplicate spikes in KS4 and KS2.5
+
+`duplicates_audit.md` is the five-agent audit (whether KS4 duplicates more than KS2.5; how each handles
+duplicates; how to choose the lag threshold). The scripts were written by the agents, one subfolder per lens.
+Unlike the rest of this folder, they write their outputs next to themselves; their outputs as run are in
+`C:\data\ks4_tuning\exploratory\duplicates\<lens>\` (the `empirics` histogram cache, ~400 MB, was not kept).
+
+| Folder | Question |
+|---|---|
+| `empirics\` | Within- and cross-unit short-lag profiles for every sort (KS4 default, H8; KS2.5 standard, standard_low; both excerpts), before/after each removal step and the harness's cleaning; matched cells; Hill contamination under dedup windows of 0.25-1 ms; hybrid pairs |
+| `mechanisms\` | How each sorter makes duplicates; echo pairs in large units; within- vs cross-template pairs; cross-unit profiles by distance; hybrid ground truth |
+| `methods\` | KS4's `remove_duplicates` reproduced and varied (which member kept, chaining, wider windows); raw joint refit of pair members; batch-edge enrichment; template-level lags in KS2.5's traced stages |
+| `threshold\` | Mixture model and per-unit empirical-Bayes windows; score-order asymmetry estimate of true duplicates; raw one-vs-two-spike classification; the score-order rule; Hill under different censored periods |
+| `skeptic\` | Competing explanations: removal-step simulation, raw one- vs two-spike fits with controls, KS2.5's view of KS4's pairs, local co-activity and artefacts, cross-unit raw test, consequences for the comparisons |
+
 ## `long_data\`: the 2-hour segments
 
 | File | Role |

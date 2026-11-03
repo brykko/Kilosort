@@ -119,7 +119,10 @@ as a label (core vs tail / MUA) rather than an irreversible cut.
 - **Duplicate window too narrow** *(2, independently)*. Within-unit violations pile up at 0.3-0.5 ms, just
   past `duplicate_spike_ms` 0.25 (~10k pairs on kobe, ~¼ of violations in the Hill window); neighbouring units
   show +35% coincidences at 0.27-0.4 ms. This inflates every refractory-based estimate, KS2.5's too. Try
-  0.5 ms.
+  0.5 ms. **Withdrawn after the follow-up audit** ([duplicates_audit.md](../duplicates/duplicates_audit.md)):
+  in the raw data 80-95% of these pairs are two separate spikes (a near-synchronous neighbour mixed into the
+  unit), so a 0.5 ms window would delete real spikes and hide contamination. True duplicates are rarer
+  same-template echoes, better caught by a score-order rule.
 - **`spike_templates.npy` == `spike_clusters.npy`** *(2)* (`io.py:370`); the extraction template is
   `spike_detection_templates.npy`.
 - **Paper vs code** *(4)*: a refractory CCG makes the tree *merge* (paper ~1606 says "split"); the score uses a
