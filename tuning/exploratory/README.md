@@ -53,6 +53,7 @@ assumes independent spikes, 'local' takes the pair density from the unit's own a
 | `ks4_sort_scored.py`, `queue_scored.sh` | KS4 sorts as `run_sort.py` runs them, copying an existing sort's settings, plus each spike's template-matching score (`score.npy`, from `save_extra_vars`); default and H8, seed 1, both excerpts, outputs in `autocurate\sorts\` (each reproduces its original sort exactly, `same_sort.py`) |
 | `apply_cut.py`, `plot_cut.py` | The ported `set_cutoff` (strict, one pass) on those sorts, cut-off lowered from `Th_learned` + 1-4 to `Th_learned`, on `tradeoff.py`'s curves next to KS2.5 standard and standard_low |
 | `make_variants.py`, `score_variants.sh`, `summarise_variants.py` | S of the cut sorts (H8 at widths 2 and 4, default at 4; seed 1) with the harness's `evaluate.py`/`compare.py` (kobe) and `transfer.py` (MEC), outside `run_candidate.py`, against a matched random control (in each unit, as many spikes as the cut removed there, drawn at random; three draws) |
+| `placement_audit.md` | Where in KS4 a `set_cutoff`-like step could go and what it would do at each point: a five-agent brainstorming audit with read-only checks on the scored sorts (the check scripts were not kept), and a staged test plan |
 
 ## `long_data\`: the 2-hour segments
 
