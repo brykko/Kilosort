@@ -43,6 +43,16 @@ assumes independent spikes, 'local' takes the pair density from the unit's own a
 | `sparse_units.py` | Whether KS2.5's sparsely firing units are what helps its MEC position decoding |
 | `matched_decode.py` | MEC position decoded from the cells KS2.5 and H8 share (each sorter's version) and from their unshared units |
 
+## `autocurate\`: KS2.5's autocurate, and a `set_cutoff`-like step for KS4
+
+| File | Question |
+|---|---|
+| `stage_breakdown.py` | What each step of KS2.5's autocurate does (traced reruns of `ks25_setup\`): units, spikes and contamination after every merge, split and cut |
+| `set_cutoff.py` | Python port of the lab pipeline's `set_cutoff` (with `calcCcg`, `ccg_rg` and `aCorrPointProcess`) |
+| `validate_port.py` | The port against MATLAB on the traced reruns: same spikes kept and same per-template cut-offs in both cycles, both excerpts |
+| `ks4_sort_scored.py`, `queue_scored.sh` | KS4 sorts as `run_sort.py` runs them, copying an existing sort's settings, plus each spike's template-matching score (`score.npy`, from `save_extra_vars`); default and H8, seed 1, both excerpts, outputs in `autocurate\sorts\` (each reproduces its original sort exactly, `same_sort.py`) |
+| `apply_cut.py`, `plot_cut.py` | The ported `set_cutoff` (strict, one pass) on those sorts, cut-off lowered from `Th_learned` + 1-4 to `Th_learned`, on `tradeoff.py`'s curves next to KS2.5 standard and standard_low |
+
 ## `ks25_setup\`: setting up the KS2.5 sorts
 
 | File | Role |
