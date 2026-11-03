@@ -32,6 +32,9 @@ done (spec v0.17). **Winner** (H8,
   Population decoding (Bayesian, and population-vector correlation raw and z-scored) separates the
   three far less: direction saturates at 100 ms windows; at 20 ms H8 decodes best or ties in 10 of 12
   cases, and KS2.5's lead for MEC position appears only with the Bayesian decoder.
+  The pipeline's lower-threshold preset "standard_low" (spec v0.20) gains ~8–9% over "standard" on both
+  excerpts and beats default on both (kobe ΔS +53.9, MEC +267.0); H8 still beats it by +339.1 on kobe and
+  +710.3 on MEC (+32% on each), every guard passing.
 - **Path there:** round 1 found that stock KS4 merges too much (relaxing the merge tree gained most);
   round 2 set the graph resolution and the final merge (with the reproducibility stopping rule);
   round 3 lowered the detection thresholds; round 4 doubled the landmark spikes in the first
@@ -62,7 +65,7 @@ done (spec v0.17). **Winner** (H8,
 | `run_candidate.py` | Wrapper: `freeze`, and `run` (sort → clean → evaluate → compare → log) |
 | `run_queue.py` | Runs a queue of evaluations through `run_candidate.py`, one sort at a time |
 | `run_sort.py` | One KS4 sort from this checkout, with `provenance.json`; `--cache` reuses unaffected stages |
-| `ks25_sort.py`, `ks25_sort.m` | One KS2.5 sort with the neuropixels pipeline's "standard" preset (MATLAB R2025a), adapted to the harness's conventions (§14) |
+| `ks25_sort.py`, `ks25_sort.m` | One KS2.5 sort with the neuropixels pipeline's "standard" or "standard_low" preset (MATLAB R2025a), adapted to the harness's conventions (§14) |
 | `stage_cache.py` | Stage cache: reuses drift correction, first detection and (when only later settings differ) first clustering and template matching; bit-identical to full sorts |
 | `cleaning.py` | Multi-unit events, duplicate test, masks (§6.1–6.3) |
 | `waveform.py` | Bombcell noise screen (§6.4) |
@@ -108,7 +111,7 @@ done (spec v0.17). **Winner** (H8,
 | `runs\strict_cleaning_*.json`, `runs\strict_cleaning\` | Stricter-cleaning re-scores (§9.2) and their hard-linked shadow sort folders |
 | `runs\round2_oversplit_R4_s1.json`, `runs\round2_tree_diagnostic.json`, `runs\round3_peel_diagnostic.json` | Round diagnostics |
 | `runs\popdecode_*.json` | Population-decoding test (spec §12) |
-| `runs\ks25_standard_r1..3\`, `runs\ks25_comparison\`, `runs\reproducibility_ks25.json`, `runs\reproducibility_default.json`, `runs\strict_cleaning_ks25.json`, `runs\bayes_decode.json`, `runs\corr_decode.json` | KS2.5 comparison (§14): sorts, H8 against KS2.5, units reproduced across replicates (KS2.5 and default), stricter cleaning, population decoding |
+| `runs\ks25_standard_r1..3\`, `runs\ks25_comparison\`, `runs\reproducibility_ks25.json`, `runs\reproducibility_default.json`, `runs\strict_cleaning_ks25.json`, `runs\bayes_decode.json`, `runs\corr_decode.json`; "standard_low": `runs\ks25_standard_low_r1..3\`, `runs\*ks25low*`, `runs\*_decode_v020.json` | KS2.5 comparison (§14): sorts, H8 against KS2.5, units reproduced across replicates (KS2.5 and default), stricter cleaning, population decoding |
 | `search\stage_cache\` | Stage cache; entries can be deleted at any time (a miss recomputes them). Pruned on 2026-11-02 to the winner's entries |
 
 **Transfer test data** (`C:\data\ks4_tuning\25843_roger_2019-09-11\`, spec §2 and §10):
@@ -120,7 +123,7 @@ done (spec v0.17). **Winner** (H8,
 | `tracking_source\motive\` | Local copy of the session's Motive files (input to `extract_tracking.py`) |
 | `runs\default_s1..3\`, `runs\H8_s1..3\` | Default and winner sorts (`run_sort.py`, no stage cache) |
 | `runs\transfer.json`, `runs\reproducibility.json` | Transfer scores and guards (`transfer.py`), units reproduced across seeds |
-| `runs\ks25_standard_r1..3\`, `runs\transfer_ks25.json`, `runs\transfer_H8_vs_ks25.json`, `runs\reproducibility_ks25.json`, `runs\bayes_decode.json`, `runs\corr_decode.json` | KS2.5 comparison (§14): sorts, KS2.5 and H8 against default, H8 against KS2.5, units reproduced, population decoding |
+| `runs\ks25_standard_r1..3\`, `runs\transfer_ks25.json`, `runs\transfer_H8_vs_ks25.json`, `runs\reproducibility_ks25.json`, `runs\bayes_decode.json`, `runs\corr_decode.json`; "standard_low": `runs\ks25_standard_low_r1..3\`, `runs\*ks25low*`, `runs\*_decode_v020.json` | KS2.5 comparison (§14): sorts, KS2.5 and H8 against default, H8 against KS2.5, units reproduced, population decoding |
 
 **Exploratory outputs** (`C:\data\ks4_tuning\exploratory\`): one subfolder per folder of `exploratory\`
 (both excerpts together).

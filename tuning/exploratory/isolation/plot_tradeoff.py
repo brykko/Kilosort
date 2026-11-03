@@ -10,8 +10,9 @@ import numpy as np  # noqa: E402
 
 D = Path('C:/data/ks4_tuning/exploratory/isolation/tradeoff')
 C = np.load(D / 'curves.npz')
-COL = {'default': '#2a78d6', 'ks25': '#eb6834', 'H8': '#1baf7a', 'ks25 pre-cut': '#eb6834'}
-NAME = {'default': 'KS4 default', 'ks25': 'KS2.5 standard', 'H8': 'H8', 'ks25 pre-cut': 'KS2.5 before set_cutoff'}
+COL = {'default': '#2a78d6', 'ks25': '#eb6834', 'H8': '#1baf7a', 'ks25 low': '#eda100', 'ks25 pre-cut': '#eb6834'}
+NAME = {'default': 'KS4 default', 'ks25': 'KS2.5 standard', 'H8': 'H8', 'ks25 low': 'KS2.5 standard_low',
+        'ks25 pre-cut': 'KS2.5 before set_cutoff'}
 LS = {'ks25 pre-cut': (0, (4, 2))}
 INK, INK2, GRID, BG = '#0b0b0b', '#52514e', '#e4e3df', '#fcfcfb'
 ZOOM = len(sys.argv) > 1 and sys.argv[1] == 'zoom'
@@ -34,7 +35,7 @@ for r, ex in enumerate(('kobe', 'mec')):
         ax.axvline(ks_end, color=INK2, lw=0.8, ls=(0, (3, 3)), zorder=0)
         if ZOOM:
             ax.set_xlim(0, 1.6 * ks_end)
-            top = max(np.interp(1.6 * ks_end, *C[f'{ex}|{m}|{g}|0'].T / 1e6) for g in ('default', 'ks25', 'H8'))
+            top = max(np.interp(1.6 * ks_end, *C[f'{ex}|{m}|{g}|0'].T / 1e6) for g in ('default', 'ks25', 'ks25 low', 'H8'))
             ax.set_ylim(0, top * 1.05)
         else:
             ax.set_xlim(left=0); ax.set_ylim(bottom=0)
@@ -52,8 +53,8 @@ for r, ex in enumerate(('kobe', 'mec')):
             ax.set_ylabel('Correctly assigned spikes (millions)')
 handles = [plt.Line2D([], [], color=COL[g], lw=2, ls=LS.get(g, '-'), label=NAME[g]) for g in COL]
 handles.append(plt.Line2D([], [], color=INK2, lw=0.8, ls=(0, (3, 3)), label="KS2.5's whole output"))
-fig.legend(handles=handles, loc='upper center', ncol=5, frameon=False, bbox_to_anchor=(0.5, 0.995))
+fig.legend(handles=handles, loc='upper center', ncol=3, frameon=False, bbox_to_anchor=(0.5, 0.995))
 fig.suptitle('Units admitted cleanest first (cross-validated across halves); dot = whole output; one line per seed',
-             y=0.945, fontsize=9, color=INK2)
-fig.tight_layout(rect=(0, 0, 1, 0.93))
+             y=0.925, fontsize=9, color=INK2)
+fig.tight_layout(rect=(0, 0, 1, 0.91))
 fig.savefig(D / f'tradeoff{"_zoom" if ZOOM else ""}.png', dpi=150)

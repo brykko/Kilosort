@@ -34,9 +34,10 @@ M = Path('C:/data/ks4_tuning/25843_roger_2019-09-11')
 SETS = {
     'kobe': {'default': [K / f'runs/hybrid_default_seed{k}' for k in (1, 2, 3, 4, 5)],
              'ks25': [K / f'runs/ks25_standard_r{k}' for k in (1, 2, 3)],
+             'ks25 low': [K / f'runs/ks25_standard_low_r{k}' for k in (1, 2, 3)],
              'H8': [K / f'runs/search/{r}/sort' for r in ('198_H8_cds10_s1', '208_H8_cds10_s2', '218_H8_cds10_s3')]},
     'mec': {'default': [M / f'runs/default_s{k}' for k in (1, 2, 3)], 'ks25': [M / f'runs/ks25_standard_r{k}' for k in (1, 2, 3)],
-            'H8': [M / f'runs/H8_s{k}' for k in (1, 2, 3)]},
+            'ks25 low': [M / f'runs/ks25_standard_low_r{k}' for k in (1, 2, 3)], 'H8': [M / f'runs/H8_s{k}' for k in (1, 2, 3)]},
 }
 RERUN = Path('C:/data/ks4_tuning/exploratory/ks25_traced')
 STAGES = {'ks25 pre-cut': 'split1', 'ks25 post-cut': 'merge3'}

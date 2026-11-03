@@ -1,22 +1,25 @@
 # KS2.5 comparison: the winner against the lab's Kilosort 2.5 pipeline
 
-Plan: [search_ks25.md](search_ks25.md); rules: [evaluation_spec.md](evaluation_spec.md) v0.17, §14.
-KS2.5 is the neuropixels pipeline's Kilosort 2.5 (Gardner et al. 2022), preset "standard", from
-`C:\code\github\neuropixels` at `6626f68` (clean), three replicates per excerpt (seeds 1–3 of
-`learnAndSolve8b`; seed 1 is the pipeline's own sort). KS4 default and H8 are the sorts of
-[round4_results.md](round4_results.md) and [transfer_results.md](transfer_results.md).
+Plan: [search_ks25.md](search_ks25.md); rules: [evaluation_spec.md](evaluation_spec.md) v0.17, §14
+(v0.20 for the second preset). KS2.5 is the neuropixels pipeline's Kilosort 2.5 (Gardner et al. 2022),
+preset "standard" and, added later (plan §8), preset "standard_low", from `C:\code\github\neuropixels`
+at `6626f68` (clean), three replicates per excerpt and preset (seeds 1–3 of `learnAndSolve8b`; seed 1 is
+the pipeline's own sort). KS4 default and H8 are the sorts of [round4_results.md](round4_results.md) and
+[transfer_results.md](transfer_results.md).
 
 ## Result
 
-**H8 beats the lab's KS2.5 on both excerpts, by about 43% on each, with every guard passing on every
-seed.** KS2.5 and default KS4 are close, and neither is ahead on both: KS2.5 is about δ worse than
-default on kobe and 7 SD better on MEC.
+**H8 beats the lab's KS2.5 on both excerpts, by about 43% over "standard" and 32% over "standard_low",
+with every guard passing on every seed.** KS2.5 "standard" and default KS4 are close, and neither is
+ahead on both: KS2.5 is about δ worse than default on kobe and 7 SD better on MEC. "standard_low",
+which admits more low-amplitude spikes, beats both "standard" (+8–9% on each excerpt) and default (by
+about 2δ on kobe and 19 SD on MEC).
 
-| Excerpt | Score (bits/s) | KS4 default | KS2.5 standard | H8 | H8 − KS2.5 |
-|---|---|---|---|---|---|
-| Kobe | S (θ_ref) | 1019.7 ± 14.3 | 989.0 ± 5.9 | 1412.6 | **+423.6** |
-| Kobe | S_track | 834.2 ± 13.6 | 816.9 ± 4.9 | 1175.2 | **+358.3** |
-| MEC | Position S | 1955.0 ± 14.3 | 2054.0 ± 18.5 | 2932.3 | **+878.3** |
+| Excerpt | Score (bits/s) | KS4 default | KS2.5 standard | KS2.5 standard_low | H8 | H8 − standard | H8 − standard_low |
+|---|---|---|---|---|---|---|---|
+| Kobe | S (θ_ref) | 1019.7 ± 14.3 | 989.0 ± 5.9 | 1073.5 ± 16.7 | 1412.6 | **+423.6** | **+339.1** |
+| Kobe | S_track | 834.2 ± 13.6 | 816.9 ± 4.9 | 886.6 ± 14.0 | 1175.2 | **+358.3** | **+288.7** |
+| MEC | Position S | 1955.0 ± 14.3 | 2054.0 ± 18.5 | 2222.0 ± 24.7 | 2932.3 | **+878.3** | **+710.3** |
 
 Means over replicates ± SD across them (default kobe: five seeds; the others three).
 
@@ -244,6 +247,95 @@ the replicates):
 - **At equal unit counts H8's units again decode worse**, with both variants, and its full population
   catches up through numbers, as with the Bayesian decoder.
 
+## Preset "standard_low" (spec v0.20, plan §8)
+
+The pipeline's preset for noisier recordings: "standard" with `Th` [9 4] instead of [10 6], i.e. a
+lower template-matching threshold for learning and for the final extraction of spikes, and a lower
+floor for `set_cutoff`. It outputs ~15% more spikes than "standard" on kobe (7.06–7.07 M against
+6.12–6.16 M) and ~17% more on MEC (6.27–6.35 M against 5.36–5.45 M), in ~1,170–1,260 clusters against
+~1,030–1,120.
+
+### Kobe
+
+**standard_low against default** (`run_candidate.py --phase comparison`, runs 234–236 in the search log):
+
+| Seed | S | ΔS | ΔS_track | Eligible | Hybrid agreement | Recovered | HD pairs merged | Untuned | Guards |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 1078.3 | +58.6 | +54.9 | 1030 | 0.969 | 30 | 0 | 415 | pass |
+| 2 | 1087.4 | +67.7 | +64.9 | 1049 | 0.972 | 32 | 0 | 428 | pass |
+| 3 | 1055.0 | +35.3 | +37.3 | 986 | 0.978 | 32 | 0 | 382 | pass |
+| Default | 1019.7 | | | ~772 | 0.951 | 31.4 | 0 | 193 | |
+
+- standard_low **improves on default**: mean ΔS +53.9 (δ = 28.6; every replicate above δ) and ΔS_track
+  +52.4 (δ_track/2 = 13.6), with every guard passing on every replicate. Against "standard" it gains
+  +84.5 in S (+8.5%) and +69.7 in S_track. Its run-to-run SD (16.7) is close to default's (14.3) and
+  larger than standard's (5.9).
+- **Matched units** (against default seed 1): ~425 of its ~1,020 eligible units match a default unit and
+  score the same as their default counterparts (758–770 against 756–763 bits/s); its other ~596 units
+  carry ~310 bits/s against ~270 for default's ~352 unmatched units.
+
+**H8 against standard_low** (`compare.py`, standard_low's three replicates as the baseline):
+
+| H8 seed | ΔS | ΔS_track | Eligible (standard_low ~1022) | Hybrid agreement (0.973, τ 0.009) | Recovered (31.3, τ 2.3) | Untuned (standard_low ~256) | Guards |
+|---|---|---|---|---|---|---|---|
+| 1 | +337.8 | +285.8 | 1712 | 0.976 | 33 | 607 | pass |
+| 2 | +339.1 | +288.5 | 1689 | 0.975 | 33 | 582 | pass |
+| 3 | +340.3 | +291.7 | 1683 | 0.977 | 33 | 556 | pass |
+
+- **Matched units** (against standard_low seed 1): ~523 H8 units match a standard_low unit and score
+  917–924 bits/s against 894–902 for their standard_low counterparts; H8's other ~1,170 units carry
+  ~492 bits/s against ~180 for standard_low's ~507 unmatched units.
+- **Units reproduced across replicates:** ~682 (681, 675, 691; 65–70% of ~1,022 eligible), against ~627
+  (70%) for standard, ~655 (85%) for default and ~1,004 (59%) for H8.
+- **Stricter duplicate cleaning:** 1068.7, 1077.8, 1045.6 (mean 1064.0, −9.5 from its S); then +68.3
+  against default and H8 +325.9 against standard_low.
+
+### MEC
+
+Same α (0.0625 s, set on default's sorts) and default scores as above.
+
+| Seed | S | ΔS (against default) | Eligible | Untuned | Guards |
+|---|---|---|---|---|---|
+| 1 | 2207.2 | +252.2 | 936 | 315 | pass |
+| 2 | 2250.4 | +295.5 | 978 | 343 | pass |
+| 3 | 2208.3 | +253.3 | 965 | 324 | pass |
+
+standard_low **beats default** by +267.0 (19 SD of default across seeds) and "standard" by +168.0 (+8.2%).
+
+**H8 against standard_low** (`transfer.py --alpha 0.0625`, standard_low's replicates as the baseline:
+S 2222.0 ± 24.7, ~960 eligible, ~240 untuned; time-shift control on its sorts +12.6, +12.6, +12.2,
+within 2 SD of 0): H8 2917.9, 2941.6, 2937.4, ΔS +695.9, +719.6, +715.4 (mean +710.3, +32%, 29 SD of
+standard_low across its replicates); eligible 1798–1885, untuned 756–837; every guard passes.
+
+**Units reproduced across replicates:** ~700 (693, 703, 705; 71–75% of ~960 eligible), against ~652
+(73–75%) for standard.
+
+### Decoding
+
+All four sorters decoded again on the same windows (`bayes_decode_v020.json`, `corr_decode_v020.json`;
+default, standard and H8 reproduce the tables above). Median error, mean over replicates, 20 / 100 /
+500 ms:
+
+| Excerpt | Decoded | Decoder | KS2.5 standard | KS2.5 standard_low |
+|---|---|---|---|---|
+| Kobe | Direction (°) | Bayesian | 12.6 / 9.7 / 6.2 | 12.5 / 9.7 / 6.3 |
+| | | Correlation, raw | 14.9 / 9.0 / 5.9 | 14.3 / 8.7 / 5.7 |
+| | | Correlation, z | 14.6 / 10.4 / 7.0 | 14.4 / 10.3 / 7.2 |
+| Kobe | Position (cm) | Bayesian | 27.0 / 13.6 / 10.8 | 26.5 / 13.3 / 10.6 |
+| | | Correlation, raw | 44.4 / 20.4 / 13.2 | 42.4 / 19.2 / 13.0 |
+| | | Correlation, z | 28.0 / 15.1 / 12.0 | 27.2 / 15.0 / 11.9 |
+| MEC | Direction (°) | Bayesian | 18.0 / 12.3 / 8.4 | 17.6 / 12.0 / 8.3 |
+| | | Correlation, raw | 22.0 / 12.3 / 9.4 | 21.7 / 12.9 / 9.9 |
+| | | Correlation, z | 20.5 / 13.3 / 10.1 | 19.8 / 13.0 / 9.9 |
+| MEC | Position (cm) | Bayesian | 21.9 / 12.0 / 10.0 | 21.7 / 12.0 / 10.2 |
+| | | Correlation, raw | 40.6 / 17.1 / 13.3 | 40.2 / 18.1 / 14.3 |
+| | | Correlation, z | 26.3 / 15.1 / 12.6 | 25.6 / 14.8 / 12.5 |
+
+At 20 ms standard_low decodes better than standard in all 12 cases, by 0.2–2.0° or cm; at 100 and 500 ms
+the two are within 1 cm or degree. With standard_low added, H8 decodes best at 20 ms in 9 of 12 cases;
+standard_low leads for MEC direction with z (19.8° against H8's 20.2°) and MEC position with the
+Bayesian decoder (21.7 cm against standard's 21.9 and H8's 23.1), and default for kobe direction with z.
+
 ## What the comparison shows
 
 - **H8 is the better sorter on both recordings**, by ~420 bits/s of heading information on kobe and
@@ -253,6 +345,9 @@ the replicates):
 - **KS2.5 "standard" and default KS4 are close.** Both find similar numbers of units (KS2.5 ~120–150
   more), sort the cells they share equally well (kobe's matched units), and trade places between
   recordings: KS2.5 is about δ behind on kobe and ~7 SD ahead on MEC.
+- **Admitting more low-amplitude spikes helps KS2.5.** "standard_low" gains ~8–9% over "standard" on
+  both recordings and beats default KS4 on both, with every guard passing; H8 still leads it by ~32%
+  (~340 bits/s on kobe, ~710 on MEC). Of H8's lead over "standard", "standard_low" closes about a fifth.
 - **KS2.5's units reproduce less often than default KS4's** (69–75% against 82–85%) but more often than
   H8's (48–60%); in number, H8 reproduces ~1.4–1.6 times as many units as KS2.5.
 - **Population decoding barely separates the three sorters.** Direction saturates at 100 ms windows
@@ -266,7 +361,11 @@ the replicates):
 - **Run time:** 23.5–27.9 min on kobe and 30.4–30.5 min on MEC (one MEC replicate took 42.0 min while
   harness jobs shared the CPU). Template learning stopped automatically after about 2,400–3,300 of
   the 16,000 learning batches; learning and spike extraction took ~17–23 min, preprocessing ~1.7,
-  drift correction ~2 and autocurate ~3. KS4 default takes ~4–5 min and H8 ~7–9.
+  drift correction ~2 and autocurate ~3. KS4 default takes ~4–5 min and H8 ~7–9. "standard_low": 27.5–34.5
+  min on kobe and 31.4–37.0 min on MEC.
+- **Repeatability:** a second seed-1 sort of each excerpt with "standard" (the traced rerun of
+  `tuning/exploratory/ks25_setup/`) reproduced the replicate-1 sort exactly, every spike time and
+  cluster, so on this machine a KS2.5 sort is fixed by its seed.
 - **GPU:** the mex binaries (CUDA 12.9) run on the RTX 5070 Ti once MATLAB's CUDA forward compatibility
   is enabled (`ks25_sort.m` does it).
 - **Information barrier:** the pipeline stores `curationTrackingTimeRange` in `rez.ops` and nothing reads
@@ -294,6 +393,12 @@ Kobe scoring (`<K>` = `C:\data\ks4_tuning\26648_kobe_2020-08-21`):
     python transfer.py --default <M>/runs/ks25_standard_r1 ... r3 --winner <M>/runs/H8_s1 ... s3 --alpha 0.0625 ... --out <M>/runs/transfer_H8_vs_ks25.json
     python reproducibility.py --pair <M>/runs/ks25_standard_r1 <M>/runs/ks25_standard_r2 --pair ... --raw-artefacts <M>/search/raw_artefacts_car.npz --duration 1200 --out <M>/runs/reproducibility_ks25.json
 
+"standard_low": the same commands with `--preset standard_low`, `ks25_standard_low` in place of
+`ks25_standard` and `ks25low` in place of `ks25` in the output names, then decoding with the four groups
+into `*_decode_v020.json`, as listed in [search_ks25.md](search_ks25.md) §8; run by
+`exploratory/ks25_setup/queue_low.sh` (sorts) and `score_low.sh` (scoring), tabulated by
+`summarise_low.py`.
+
 ## Files
 
 - Kobe (`C:\data\ks4_tuning\26648_kobe_2020-08-21\runs\`): `ks25_standard_r{1,2,3}\` (sorts, with
@@ -305,3 +410,7 @@ Kobe scoring (`<K>` = `C:\data\ks4_tuning\26648_kobe_2020-08-21`):
   `transfer_ks25.json`, `transfer_H8_vs_ks25.json`, `reproducibility_ks25.json`.
 - Both: `bayes_decode.json` and `corr_decode.json` (Bayesian and correlation decoding of every sort;
   commands in [search_ks25.md](search_ks25.md) §6–7).
+- "standard_low": `ks25_standard_low_r{1,2,3}\` in both; kobe `search\23{4,5,6}_ks25_standard_low_s*\`,
+  `ks25_comparison\H8_vs_ks25low_s{1,2,3}.json`, `reproducibility_ks25low.json`,
+  `strict_cleaning_ks25low.json`; MEC `transfer_ks25low.json`, `transfer_H8_vs_ks25low.json`,
+  `reproducibility_ks25low.json`; both `bayes_decode_v020.json`, `corr_decode_v020.json`.

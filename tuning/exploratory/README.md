@@ -19,13 +19,14 @@ assumes independent spikes, 'local' takes the pair density from the unit's own a
 | `comod.py` | The same with co-modulation allowed for (plain, binned and local estimates) |
 | `rate_regression.py` | Share of the difference predicted by unit firing rates alone (pooled regression on log rate) |
 | `matched_contam.py` | Contamination of the same cells in two sorts (one-to-one matched units) |
+| `low_vs_standard.py` | KS2.5 standard against standard_low (seed 1): which units are found again, how their spikes and contamination change, where the extra spikes are; standard seeds 1 and 2 as a control |
 | `where_misassigned.py` | Misassigned spikes in cells shared with KS2.5 against units only one sorter has |
 | `rate_decomp.py` | Rate and per-spike terms of score differences (S, isolation); reads `isolation.py`'s outputs |
-| `tradeoff.py`, `plot_tradeoff.py` | Correctly assigned against misassigned spikes as units are admitted cleanest first, cross-validated over the halves; KS2.5 also before `set_cutoff` (the traced rerun of `ks25_setup\`) |
+| `tradeoff.py`, `plot_tradeoff.py` | Correctly assigned against misassigned spikes as units are admitted cleanest first, cross-validated over the halves; KS2.5 also before `set_cutoff` (the traced rerun of `ks25_setup\`) and with preset "standard_low" |
 | `trace_units.py` | Where KS4's contamination comes from relative to KS2.5 (spike-level labels), and where KS2.5's own units went |
 | `amp_check.py` | Amplitudes of the KS4 spikes that KS2.5 doesn't output |
 | `cutoff_trace.py` | Whether the KS4 spikes that KS2.5 doesn't output were never extracted by KS2.5 or deleted by its `set_cutoff` (uses the traced reruns of `ks25_setup\`) |
-| `amplitude.py`, `plot_amplitude.py` | Contamination against unit amplitude, measured from the raw data the same way for every sorter (one GPU pass per excerpt) |
+| `amplitude.py`, `plot_amplitude.py` | Contamination against unit amplitude (KS4 default, KS2.5 standard and standard_low, H8), measured from the raw data the same way for every sorter (one GPU pass per excerpt) |
 
 ## `uniqueness\`: locally unique, strongly tuned units
 
@@ -50,3 +51,5 @@ assumes independent spikes, 'local' takes the pair density from the unit's own a
 | `chanmap_check.m` | The neuropixels pipeline's channel maps for both excerpts (`chanmap_*.mat`, written to the current folder), checked against the probe json |
 | `ks25_sort_traced.m`, `ks25_sort_traced.py` | `ks25_sort.m` with `autocurate`'s steps run one by one and every stage's spikes saved (`stages.npz`), then adapted and cleaned; outputs in `ks25_traced\` |
 | `queue.sh` | The KS2.5 sorts after the first, one at a time (the commands of [ks25_comparison.md](../ks25_comparison.md)) |
+| `queue_low.sh` | The six KS2.5 "standard_low" sorts, one at a time ([search_ks25.md](../search_ks25.md) §8) |
+| `score_low.sh`, `summarise_low.py` | Their scoring (§8's commands, one job at a time) and its tables, with "standard" alongside |

@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
 D = Path('C:/data/ks4_tuning/exploratory/isolation/amplitude')
-GROUPS = ('default', 'ks25', 'H8')
-COL = {'default': '#2a78d6', 'ks25': '#eb6834', 'H8': '#1baf7a'}
-NAME = {'default': 'KS4 default', 'ks25': 'KS2.5 standard', 'H8': 'H8'}
+GROUPS = ('default', 'ks25', 'ks25_low', 'H8')
+COL = {'default': '#2a78d6', 'ks25': '#eb6834', 'H8': '#1baf7a', 'ks25_low': '#eda100'}
+NAME = {'default': 'KS4 default', 'ks25': 'KS2.5 standard', 'H8': 'H8', 'ks25_low': 'KS2.5 standard_low'}
 EXNAME = {'kobe': 'Kobe', 'mec': 'MEC'}
 INK, INK2, GRID, BG = '#0b0b0b', '#52514e', '#e4e3df', '#fcfcfb'
 EDGES = 10 * 2 ** (np.arange(0, 15) / 2)          # 10 to 1280 uV, half-octave bins
@@ -45,7 +45,7 @@ def style(ax):
 
 def legend(fig, y=0.995):
     h = [plt.Line2D([], [], color=COL[g], lw=2, marker='o', ms=5, label=NAME[g]) for g in GROUPS]
-    fig.legend(handles=h, loc='upper center', ncol=3, frameon=False, bbox_to_anchor=(0.5, y))
+    fig.legend(handles=h, loc='upper center', ncol=len(GROUPS), frameon=False, bbox_to_anchor=(0.5, y))
 
 
 def binned(amp, n, c):
@@ -58,7 +58,7 @@ def binned(amp, n, c):
 
 for est in ('plain', 'local'):
     # 1. scatter
-    fig, axs = plt.subplots(2, 3, figsize=(10, 6.4), sharex=True, sharey=True)
+    fig, axs = plt.subplots(2, len(GROUPS), figsize=(3.3 * len(GROUPS), 6.4), sharex=True, sharey=True)
     for r, ex in enumerate(EXNAME):
         for k, g in enumerate(GROUPS):
             ax = axs[r, k]

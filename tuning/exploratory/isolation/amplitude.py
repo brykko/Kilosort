@@ -8,7 +8,7 @@ samples of the spike time, in uV (AP gain 500, +-0.6 V over 10 bits). One pass t
 serves all its sorts.
 
 Per unit also: spikes, firing rate, contamination (plain and local, as comod.py) and eligibility. Seed 1
-of each sorter; all units of the cleaned sort, hybrid copies out (as tradeoff.py).
+of each sorter (KS4 default, KS2.5 standard, KS2.5 standard_low, H8); all units of the cleaned sort, hybrid copies out (as tradeoff.py).
 Writes <OUT>/<excerpt>.npz: per sorter g, g_amp (uV), g_n, g_rate, g_c_plain, g_c_local, g_eligible,
 g_ids and g_wave (mean waveforms, units x K_CHAN x samples, uV).
 """
@@ -38,6 +38,10 @@ N_SPIKES = 1000
 K_CHAN = 24
 WINDOW = (-30, 50)
 DUR = 1200.0
+GROUPS = ('default', 'ks25', 'ks25_low', 'H8')
+LOW = {'kobe': K / 'runs/ks25_standard_low_r1', 'mec': M / 'runs/ks25_standard_low_r1'}
+MEC_ELIG = {**MEC_ELIG, **{Path(e['sort']).as_posix(): [int(c) for c in e['S_i']]
+                          for e in json.loads((M / 'runs/transfer_ks25low.json').read_text())['winner']}}
 
 
 def sort_units(sort, ex, xc, yc, rng):
@@ -105,7 +109,7 @@ if __name__ == '__main__':
     for ex in ('kobe', 'mec'):
         probe = json.loads(((K if ex == 'kobe' else M) / 'search/probe_3a_opt3.json').read_text())
         chan_map, xc, yc = (np.array(probe[k]) for k in ('chanMap', 'xc', 'yc'))
-        units = {g: sort_units(SORTS[ex][g], ex, xc, yc, rng) for g in ('default', 'ks25', 'H8')}
+        units = {g: sort_units(LOW[ex] if g == 'ks25_low' else SORTS[ex][g], ex, xc, yc, rng) for g in GROUPS}
         print(f'{ex}: ' + ', '.join(f'{g} {len(u["ids"])} units' for g, u in units.items()), flush=True)
         waves = mean_waveforms(ex, units, chan_map, device)
         out = {}
