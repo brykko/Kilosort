@@ -86,6 +86,14 @@ Unlike the rest of this folder, they write their outputs next to themselves; the
 |---|---|
 | `modular_pipeline_audit.md` | Whether steps from KS2.0/2.1, KS2.5 and KS4 (preliminary extraction, drift, template learning, final extraction, final clustering, merge/split, amplitude cut) could be swapped: what each version's code does at each step, the cost of every handoff, what the experiments so far say, and which targeted swaps are worth running. A seven-agent read-only audit; no sorts, no scripts kept |
 
+## `pc_features\`: stock KS4's `make_pc_features`
+
+| File | Question |
+|---|---|
+| `pc_features_bug.md` | Whether `pc_features.npy` rows sit on their own unit's `pc_feature_ind.npy` channels: no for 82–85% of spikes (default) and 95–96% (H8) in stock KS4, because every unit sharing a template rewrites that template's spikes (upstream #1039); the fix (restrict `igood` to the unit's own spikes) and its test |
+| `pc_features_audit.py` | The measurement on saved sorts without `tF` (channel-labelled synthetic features, CPU), stock against fixed (`--out`) |
+| `test_pc_features.py` | Toy-probe tests: fix exact, stock wrong when templates are shared, both identical when not (runs without pytest) |
+
 ## `long_data\`: the 2-hour segments
 
 | File | Role |
