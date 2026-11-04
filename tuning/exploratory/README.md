@@ -94,6 +94,22 @@ Unlike the rest of this folder, they write their outputs next to themselves; the
 | `pc_features_audit.py` | The measurement on saved sorts without `tF` (channel-labelled synthetic features, CPU), stock against fixed (`--out`) |
 | `test_pc_features.py` | Toy-probe tests: fix exact, stock wrong when templates are shared, both identical when not (runs without pytest) |
 
+## `msr\`: multiscale relevance as a covariate-free score
+
+MSR (Cubero, Marsili & Roudi 2020) as in the reference code (github.com/rcubero/MSR): 1 ms grid, ~100
+log-spaced partitions, entropies in base M; dMSR is MSR less a homogeneous Poisson train's at the same
+spike count. Write-up: `reports\Multiscale relevance as sorting objective.md`. CPU only, no sorts.
+
+| File | Question |
+|---|---|
+| `msr.py`, `common.py` | The measure, and cleaned trains, eligible units and S_i from saved sorts |
+| `synthetic.py` | MSR against rate and spike count (Poisson), heading-tuned trains driven by kobe heading, blind spots (theta, dead time, dropout) |
+| `real_units.py` | Per-unit MSR/dMSR against S_i, rate, contamination and hybrid truth (default, H8, KS2.5 standard and standard_low) |
+| `perturb_msr.py` | The perturbation audit's errors (contamination, thinning, merge, split, duplicates) on 40 well-isolated, tuned units: dMSR against S |
+| `sort_level.py` | Summed and mean MSR/dMSR against S across 51 scored sorts, with eligible-unit count partialled out |
+| `contam_mechanism_real.py`, `contam_mechanism_synth.py` | Why contamination raises MSR on real units but lowers it on a synthetic OU unit (jittered and ISI-shuffled surrogates; bursty trains) |
+| `theory\` | The theory agent's simulations (own `msr.py`): Poisson floor, process types, sorting errors, informative-but-low-MSR codes, paired error tests, duration; printed outputs in `theory\` of the output folder |
+
 ## `long_data\`: the 2-hour segments
 
 | File | Role |
