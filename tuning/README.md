@@ -42,6 +42,8 @@ done (spec v0.17). **Winner** (H8,
   useful difference.
 - **Not done:** the downstream single-cell and population analyses and the §8.9 inspection of the
   winner's sort (§9.4).
+- **No hybrid data in later analyses** (from 2026-11-03): new sorts are of the recordings as downloaded,
+  and kobe sorts are scored without hybrid truth. The hybrid excerpt stays in the results above.
 
 ## Where things live
 

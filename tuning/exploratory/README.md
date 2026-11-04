@@ -6,6 +6,10 @@ lives here, never only in a temporary folder; outputs go to `C:\data\ks4_tuning\
 same subfolders. Data paths are written into the scripts; run them with the `kilosort` environment. None
 of these results is in a results document yet.
 
+**No hybrid data** (from 2026-11-03): new sorts are of the recordings as downloaded, and kobe sorts are
+scored without hybrid truth (`evaluate.py` without `--hybrid-truth`). Earlier analyses here used the hybrid
+kobe excerpt.
+
 ## `isolation\`: spikes in well-isolated units
 
 Contamination is the refractory-violation estimate (Hill et al. 2011, τ_c 0.25 ms, τ_r 1.5 ms); 'plain'
@@ -43,6 +47,12 @@ assumes independent spikes, 'local' takes the pair density from the unit's own a
 | `sparse_units.py` | Whether KS2.5's sparsely firing units are what helps its MEC position decoding |
 | `matched_decode.py` | MEC position decoded from the cells KS2.5 and H8 share (each sorter's version) and from their unshared units |
 
+## `iteration\`: a third round of template matching
+
+| File | Question |
+|---|---|
+| `borrowed_templates.py`, `borrowed_templates.md` | How many final units have no extraction template of their own (their spikes caught by templates other units own), how much worse those spikes fit, and roughly how many spikes a third round would add; reads the scored sorts of `autocurate\` |
+
 ## `autocurate\`: KS2.5's autocurate, and a `set_cutoff`-like step for KS4
 
 | File | Question |
@@ -75,6 +85,14 @@ Unlike the rest of this folder, they write their outputs next to themselves; the
 | File | Role |
 |---|---|
 | `download.sh` | Kobe 354-7554 s and MEC 7575-14775 s (each containing its 20-min excerpt) with `extract_segment.py`, into each excerpt's `search\long\` |
+| `queue_long.sh` | Kobe's segment, one sort at a time, seed 1: KS4 default and H8 with per-spike scores (`autocurate\ks4_sort_scored.py --data`), then KS2.5 standard and standard_low (stopped during KS2.5; those sorts were redone by `queue_ks25.sh`) |
+| `queue_ks4.sh` | KS4 default and H8 with per-spike scores, seed 1: kobe's raw 20-min excerpt (the length comparison's baseline), then MEC's segment |
+| `queue_ks25.sh` | KS2.5 standard and standard_low, seed 1, after `queue_ks4.sh`: kobe's raw 20-min excerpt, then kobe's and MEC's segments |
+| `memlog.py` | System RAM and the largest python/MATLAB process every 30 s while a queue runs |
+| `window.py` | A long sort restricted to its 20-min excerpt's window (times shifted), scored by the harness like a 20-min sort; `--cut W` applies the set_cutoff-like cut to the whole long sort first |
+| `score_long.py` | Every sort of the round (20-min and 2-hour; KS4 also cut) as a window folder, then kobe S (`evaluate.py`, no hybrid truth), MEC position S (`transfer.py`) and both decoders; skips finished steps |
+| `summarise_long.py` | `summary_long.txt` and the figures `long_S.png`, `long_tradeoff.png` (uncut) and `long_tradeoff_cut.png` (KS4 cut at w=4), in `long_data\windows\` |
+| `score_after_sorts.sh` | `score_long.py` then `summarise_long.py`, once `queue_ks25.sh` has finished |
 
 ## `ks25_setup\`: setting up the KS2.5 sorts
 

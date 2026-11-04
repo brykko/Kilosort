@@ -31,7 +31,8 @@ def acg(t):
         if not (fwd.any() or bwd.any()):
             break
         for d, m in (((b - a) / TBIN, fwd), ((a - b) / TBIN, bwd)):
-            idx = np.minimum(np.floor(d[m] + 0.5).astype(np.int64) + mid, nb - 1)
+            # a lag of exactly the window's half-width (e.g. 15015 samples) can round to bin -1 or nb: clamp both
+            idx = np.clip(np.floor(d[m] + 0.5).astype(np.int64) + mid, 0, nb - 1)
             K += np.bincount(idx, minlength=nb)
     return K
 
