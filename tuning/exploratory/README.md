@@ -80,6 +80,12 @@ Unlike the rest of this folder, they write their outputs next to themselves; the
 | `threshold\` | Mixture model and per-unit empirical-Bayes windows; score-order asymmetry estimate of true duplicates; raw one-vs-two-spike classification; the score-order rule; Hill under different censored periods |
 | `skeptic\` | Competing explanations: removal-step simulation, raw one- vs two-spike fits with controls, KS2.5's view of KS4's pairs, local co-activity and artefacts, cross-unit raw test, consequences for the comparisons |
 
+## `modularity\`: steps swapped between Kilosort versions
+
+| File | Question |
+|---|---|
+| `modular_pipeline_audit.md` | Whether steps from KS2.0/2.1, KS2.5 and KS4 (preliminary extraction, drift, template learning, final extraction, final clustering, merge/split, amplitude cut) could be swapped: what each version's code does at each step, the cost of every handoff, what the experiments so far say, and which targeted swaps are worth running. A seven-agent read-only audit; no sorts, no scripts kept |
+
 ## `long_data\`: the 2-hour segments
 
 | File | Role |
