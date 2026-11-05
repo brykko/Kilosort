@@ -1,0 +1,67 @@
+A. kappa = mean(round 4 gain)/mean(round 3 gain)
+  kobe S        ratio  0.17 se 0.15  per-seed [0.47 0.01 0.04]  geometric asymptote above round 2   35.6, round 5 expected   0.8
+  kobe S_track  ratio  0.18 se 0.12  per-seed [0.41 0.05 0.08]  geometric asymptote above round 2   34.1, round 5 expected   0.9
+  MEC S         ratio  0.38 se 0.41  per-seed [-0.05  1.66  0.27]  geometric asymptote above round 2   91.5, round 5 expected   8.1
+  kobe correct at 2%        0.12
+  kobe correct at 0.42M     0.34
+  MEC correct at 2%         0.36
+  kobe whole correct        0.35
+  kobe whole misassigned    0.30
+  kobe reproducibility      0.61
+  MEC reproducibility       0.39
+  kobe dictionary size      0.05
+  MEC dictionary size       0.11
+  kobe orphans %            0.35
+  kobe spikes M             0.50
+  unit change kobe (1-matched): 2->3 0.39, 3->4 0.26, ratio 0.67; MEC 0.49, 0.37, ratio 0.76
+
+B. spikes per unit, kobe H8 s1 round 3 (20 min, 549 batches)
+  units 1795 total 11995018
+  percentiles {1: 70, 5: 356, 10: 742, 25: 1673, 50: 3219, 75: 6518, 90: 13292, 95: 24980, 99: 63291}
+  per batch   {1: 0.13, 5: 0.65, 10: 1.35, 25: 3.05, 50: 5.86, 75: 11.87, 90: 24.21, 95: 45.5, 99: 115.29}
+  log10 SD of N 0.559 mean rate 5.57 median rate 2.68
+  units with N >= 100: 98.4%, their spike share 100.0%; pass fraction to reach 100: median unit 0.031, 90th pct 0.13, spike-weighted median 0.0074
+  units with N >= 300: 95.5%, their spike share 99.9%; pass fraction to reach 300: median unit 0.093, 90th pct 0.40, spike-weighted median 0.0223
+  units with N >= 1000: 85.6%, their spike share 98.9%; pass fraction to reach 1000: median unit 0.311, 90th pct 1.35, spike-weighted median 0.0744
+  batches to 300 spikes (unit percentile 90/50/10 by N): [ 12  51 222]
+  virtual rounds per pass, standard (spikes, m 5-400): p10 37.0 median 51.6 p90 77.1
+  virtual rounds per pass, original (batches, m 20-400): p10 5.9 median 25.4 p90 104.8
+  n_eff at end of a pass = 2 m, standard: p10 148 median 644 p90 800 (rounds: N itself)
+
+C. blind band on real templates (lag-maximised best other template; units with >= 300 spikes)
+  kobe H8 r3: 1715 units; template norm median 10.0; best other rho median 0.845, p10-p90 0.67-0.94; rho>0.9: 26.5%, >0.975: 1.5%
+    Th  7: below Th   0.3%  left whole in residual  22.4%  absorbed, residual still crosses  26.9%  absorbed and BLIND  50.4%
+    Th 10: below Th  49.4%  left whole in residual  13.7%  absorbed, residual still crosses  13.4%  absorbed and BLIND  23.4%
+  kobe H8 r2: 1772 units; template norm median 10.0; best other rho median 0.851, p10-p90 0.69-0.95; rho>0.9: 27.2%, >0.975: 2.6%
+    Th  7: below Th   1.7%  left whole in residual  20.8%  absorbed, residual still crosses  27.3%  absorbed and BLIND  50.2%
+    Th 10: below Th  49.9%  left whole in residual  12.4%  absorbed, residual still crosses  13.0%  absorbed and BLIND  24.7%
+  mec H8 r3: 1952 units; template norm median 9.9; best other rho median 0.860, p10-p90 0.70-0.96; rho>0.9: 34.9%, >0.975: 3.5%
+    Th  7: below Th   0.5%  left whole in residual  17.6%  absorbed, residual still crosses  25.6%  absorbed and BLIND  56.4%
+    Th 10: below Th  51.0%  left whole in residual  11.7%  absorbed, residual still crosses  10.8%  absorbed and BLIND  26.4%
+  kobe default r2: 791 units; template norm median 12.5; best other rho median 0.793, p10-p90 0.56-0.93; rho>0.9: 17.3%, >0.975: 0.0%
+    Th  8: below Th   0.0%  left whole in residual  29.8%  absorbed, residual still crosses  39.7%  absorbed and BLIND  30.5%
+    Th 10: below Th  24.4%  left whole in residual  28.7%  absorbed, residual still crosses  26.5%  absorbed and BLIND  20.4%
+
+D. KS2.5 learning (auto-stop): batches at stop, passes, wall time
+  ks25_standard_low_r1         stop  2804 (5.11 passes)  90% of final units by batch  1501, 90% of final spikes/batch by   201; learn 1143 s = 0.41 s/batch; nstot q2 12341
+  ks25_standard_low_r2         stop  3419 (6.23 passes)  90% of final units by batch  1901, 90% of final spikes/batch by  1701; learn 1452 s = 0.42 s/batch; nstot q2 15727
+  ks25_standard_low_r3         stop  3069 (5.59 passes)  90% of final units by batch  1701, 90% of final spikes/batch by  1001; learn 1278 s = 0.42 s/batch; nstot q2 13275
+  ks25_standard_r1             stop  3160 (5.76 passes)  90% of final units by batch  1901, 90% of final spikes/batch by   201; learn 1109 s = 0.35 s/batch; nstot q2 10756
+  ks25_standard_r2             stop  3031 (5.52 passes)  90% of final units by batch  1401, 90% of final spikes/batch by   201; learn 1861 s = 0.61 s/batch; nstot q2 10762
+  ks25_standard_r3             stop  3016 (5.49 passes)  90% of final units by batch  1701, 90% of final spikes/batch by  2301; learn 1134 s = 0.38 s/batch; nstot q2 10831
+  ks25_standard_low_r1         stop  2791 (5.08 passes)  90% of final units by batch  1201, 90% of final spikes/batch by   601; learn 1152 s = 0.41 s/batch; nstot q2 12560
+  ks25_standard_low_r2         stop  3291 (5.99 passes)  90% of final units by batch  1401, 90% of final spikes/batch by   201; learn 1326 s = 0.40 s/batch; nstot q2 15425
+  ks25_standard_low_r3         stop  2431 (4.43 passes)  90% of final units by batch  1301, 90% of final spikes/batch by   601; learn 926 s = 0.38 s/batch; nstot q2 11235
+  ks25_standard_r1             stop  3251 (5.92 passes)  90% of final units by batch  1701, 90% of final spikes/batch by   701; learn 1056 s = 0.32 s/batch; nstot q2 13460
+  ks25_standard_r2             stop  2509 (4.57 passes)  90% of final units by batch  1101, 90% of final spikes/batch by   201; learn 810 s = 0.32 s/batch; nstot q2 11096
+  ks25_standard_r3             stop  2492 (4.54 passes)  90% of final units by batch  1101, 90% of final spikes/batch by   601; learn 799 s = 0.32 s/batch; nstot q2 11812
+  kobe_20min_ks25_standard     stop  3223 (5.87 passes)  90% of final units by batch  1601, 90% of final spikes/batch by   701; learn 1286 s = 0.40 s/batch; nstot q2 14608
+  kobe_20min_ks25_standard_low stop  3191 (5.81 passes)  90% of final units by batch  1401, 90% of final spikes/batch by   601; learn 1557 s = 0.49 s/batch; nstot q2 14676
+  kobe_2h_ks25_standard        stop  3032 (0.92 passes)  90% of final units by batch  1301, 90% of final spikes/batch by   201; learn 1435 s = 0.47 s/batch; nstot q2 13034
+  kobe_2h_ks25_standard_low    stop  3005 (0.91 passes)  90% of final units by batch  1401, 90% of final spikes/batch by   201; learn 1823 s = 0.61 s/batch; nstot q2 13479
+  mec_20min_ks25_standard      stop  3160 (5.76 passes)  90% of final units by batch  1901, 90% of final spikes/batch by   201; learn 1109 s = 0.35 s/batch; nstot q2 10756
+  mec_20min_ks25_standard_low  stop  2804 (5.11 passes)  90% of final units by batch  1501, 90% of final spikes/batch by   201; learn 1143 s = 0.41 s/batch; nstot q2 12341
+  mec_2h_ks25_standard         stop  2509 (0.76 passes)  90% of final units by batch  1101, 90% of final spikes/batch by   601; learn 882 s = 0.35 s/batch; nstot q2 9619
+  mec_2h_ks25_standard_low     stop  3648 (1.11 passes)  90% of final units by batch  1801, 90% of final spikes/batch by   601; learn 1540 s = 0.42 s/batch; nstot q2 17652
+
+[exited with code 0]

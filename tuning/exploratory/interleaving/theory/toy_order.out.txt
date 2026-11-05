@@ -1,0 +1,23 @@
+seed 1: 1.40 M spikes, 194 units; classes [119  43  32]
+  time order  no triage                            acc all 0.772 | stationary: acc 0.834 sin 0.032 dropped 0/119 | epochal: acc 0.607 sin 0.056 dropped 0/43 | state: acc 0.797 sin 0.032 dropped 0/32
+  time order  triage p1 .99 minFR .05 (standard)   acc all 0.771 | stationary: acc 0.828 sin 0.032 dropped 0/119 | epochal: acc 0.587 sin 0.056 dropped 1/43 | state: acc 0.797 sin 0.032 dropped 0/32
+  time order  triage p1 .95 minFR 1/50 (original)  acc all 0.605 | stationary: acc 0.785 sin 0.035 dropped 4/119 | epochal: acc 0.121 sin 0.474 dropped 26/43 | state: acc 0.678 sin 0.037 dropped 2/32
+  shuffled    no triage                            acc all 0.796 | stationary: acc 0.857 sin 0.031 dropped 0/119 | epochal: acc 0.758 sin 0.038 dropped 0/43 | state: acc 0.846 sin 0.034 dropped 0/32
+  shuffled    triage p1 .99 minFR .05 (standard)   acc all 0.796 | stationary: acc 0.857 sin 0.031 dropped 0/119 | epochal: acc 0.758 sin 0.038 dropped 0/43 | state: acc 0.846 sin 0.034 dropped 0/32
+  shuffled    triage p1 .95 minFR 1/50 (original)  acc all 0.796 | stationary: acc 0.857 sin 0.031 dropped 0/119 | epochal: acc 0.758 sin 0.038 dropped 0/43 | state: acc 0.846 sin 0.034 dropped 0/32
+seed 2: 1.13 M spikes, 175 units; classes [92 49 34]
+  time order  no triage                            acc all 0.725 | stationary: acc 0.835 sin 0.033 dropped 0/92 | epochal: acc 0.662 sin 0.061 dropped 0/49 | state: acc 0.826 sin 0.029 dropped 0/34
+  time order  triage p1 .99 minFR .05 (standard)   acc all 0.720 | stationary: acc 0.835 sin 0.033 dropped 0/92 | epochal: acc 0.626 sin 0.064 dropped 1/49 | state: acc 0.826 sin 0.029 dropped 0/34
+  time order  triage p1 .95 minFR 1/50 (original)  acc all 0.650 | stationary: acc 0.820 sin 0.034 dropped 0/92 | epochal: acc 0.282 sin 0.099 dropped 24/49 | state: acc 0.781 sin 0.032 dropped 0/34
+  shuffled    no triage                            acc all 0.814 | stationary: acc 0.850 sin 0.032 dropped 0/92 | epochal: acc 0.829 sin 0.033 dropped 0/49 | state: acc 0.897 sin 0.028 dropped 0/34
+  shuffled    triage p1 .99 minFR .05 (standard)   acc all 0.814 | stationary: acc 0.850 sin 0.032 dropped 0/92 | epochal: acc 0.829 sin 0.033 dropped 0/49 | state: acc 0.897 sin 0.028 dropped 0/34
+  shuffled    triage p1 .95 minFR 1/50 (original)  acc all 0.814 | stationary: acc 0.850 sin 0.032 dropped 0/92 | epochal: acc 0.829 sin 0.033 dropped 0/49 | state: acc 0.897 sin 0.028 dropped 0/34
+seed 3: 1.22 M spikes, 184 units; classes [117  36  31]
+  time order  no triage                            acc all 0.686 | stationary: acc 0.813 sin 0.032 dropped 0/117 | epochal: acc 0.710 sin 0.050 dropped 0/36 | state: acc 0.725 sin 0.043 dropped 0/31
+  time order  triage p1 .99 minFR .05 (standard)   acc all 0.683 | stationary: acc 0.808 sin 0.032 dropped 0/117 | epochal: acc 0.683 sin 0.055 dropped 1/36 | state: acc 0.725 sin 0.043 dropped 0/31
+  time order  triage p1 .95 minFR 1/50 (original)  acc all 0.644 | stationary: acc 0.801 sin 0.032 dropped 1/117 | epochal: acc 0.392 sin 0.056 dropped 14/36 | state: acc 0.728 sin 0.043 dropped 0/31
+  shuffled    no triage                            acc all 0.737 | stationary: acc 0.840 sin 0.031 dropped 0/117 | epochal: acc 0.824 sin 0.031 dropped 0/36 | state: acc 0.759 sin 0.033 dropped 0/31
+  shuffled    triage p1 .99 minFR .05 (standard)   acc all 0.737 | stationary: acc 0.840 sin 0.031 dropped 0/117 | epochal: acc 0.824 sin 0.031 dropped 0/36 | state: acc 0.759 sin 0.033 dropped 0/31
+  shuffled    triage p1 .95 minFR 1/50 (original)  acc all 0.737 | stationary: acc 0.840 sin 0.031 dropped 0/117 | epochal: acc 0.824 sin 0.031 dropped 0/36 | state: acc 0.759 sin 0.033 dropped 0/31
+
+[exited with code 0]

@@ -1,0 +1,78 @@
+seed 1: 1.40 M spikes, 194 units, median N 2954, 73 orphans, start dictionary 159
+  ideal (true templates)             cost  0.00  acc 0.900  slow 0.832 mid 0.884 fast 0.876  K  194  units owning 0.995  median sin(err) 0.000
+  start                              cost  0.00  acc 0.768  slow 0.408 mid 0.496 fast 0.737  K  159  units owning 0.655  median sin(err) 0.161
+  rounds, mean only, r1              cost  1.00  acc 0.801  slow 0.316 mid 0.579 fast 0.780  K  159  units owning 0.660  median sin(err) 0.062
+  rounds, mean only, r2              cost  2.00  acc 0.825  slow 0.327 mid 0.612 fast 0.818  K  159  units owning 0.670  median sin(err) 0.057
+  rounds, mean only, r3              cost  3.00  acc 0.835  slow 0.319 mid 0.633 fast 0.822  K  159  units owning 0.675  median sin(err) 0.051
+  rounds, mean only, r4              cost  4.00  acc 0.841  slow 0.297 mid 0.668 fast 0.829  K  159  units owning 0.686  median sin(err) 0.038
+  rounds, mean only, r5              cost  5.00  acc 0.845  slow 0.297 mid 0.684 fast 0.830  K  159  units owning 0.686  median sin(err) 0.035
+  online ks, 0.05 pass               cost  0.05  acc 0.842  slow 0.301 mid 0.676 fast 0.827  K  159  units owning 0.686  median sin(err) 0.118
+  online ks, 0.1 pass                cost  0.10  acc 0.850  slow 0.342 mid 0.671 fast 0.841  K  159  units owning 0.701  median sin(err) 0.095
+  online ks, 0.25 pass               cost  0.25  acc 0.853  slow 0.355 mid 0.683 fast 0.844  K  159  units owning 0.711  median sin(err) 0.069
+  online ks, 0.5 pass                cost  0.50  acc 0.854  slow 0.353 mid 0.685 fast 0.845  K  159  units owning 0.711  median sin(err) 0.056
+  online ks, 1 pass                  cost  1.00  acc 0.854  slow 0.358 mid 0.685 fast 0.845  K  159  units owning 0.711  median sin(err) 0.043
+  online ks, 3 pass                  cost  3.00  acc 0.854  slow 0.373 mid 0.685 fast 0.844  K  159  units owning 0.716  median sin(err) 0.034
+  online inv, 0.05 pass              cost  0.05  acc 0.823  slow 0.385 mid 0.575 fast 0.812  K  159  units owning 0.680  median sin(err) 0.092
+  online inv, 0.1 pass               cost  0.10  acc 0.830  slow 0.360 mid 0.605 fast 0.821  K  159  units owning 0.680  median sin(err) 0.079
+  online inv, 0.25 pass              cost  0.25  acc 0.836  slow 0.340 mid 0.627 fast 0.828  K  159  units owning 0.680  median sin(err) 0.059
+  online inv, 0.5 pass               cost  0.50  acc 0.839  slow 0.359 mid 0.653 fast 0.827  K  159  units owning 0.696  median sin(err) 0.051
+  online inv, 1 pass                 cost  1.00  acc 0.841  slow 0.354 mid 0.659 fast 0.829  K  159  units owning 0.701  median sin(err) 0.045
+  online inv, 3 pass                 cost  3.00  acc 0.848  slow 0.335 mid 0.708 fast 0.829  K  159  units owning 0.706  median sin(err) 0.039
+  online mem, 0.05 pass              cost  0.05  acc 0.823  slow 0.385 mid 0.575 fast 0.812  K  159  units owning 0.680  median sin(err) 0.092
+  online mem, 0.1 pass               cost  0.10  acc 0.830  slow 0.360 mid 0.605 fast 0.821  K  159  units owning 0.680  median sin(err) 0.079
+  online mem, 0.25 pass              cost  0.25  acc 0.836  slow 0.340 mid 0.627 fast 0.828  K  159  units owning 0.680  median sin(err) 0.059
+  online mem, 0.5 pass               cost  0.50  acc 0.839  slow 0.359 mid 0.653 fast 0.827  K  159  units owning 0.696  median sin(err) 0.051
+  online mem, 1 pass                 cost  1.00  acc 0.841  slow 0.354 mid 0.659 fast 0.829  K  159  units owning 0.701  median sin(err) 0.045
+  online mem, 3 pass                 cost  3.00  acc 0.850  slow 0.352 mid 0.714 fast 0.829  K  159  units owning 0.711  median sin(err) 0.035
+  rounds + global split/merge, r1 (36 splits) cost  1.00  acc 0.865  slow 0.554 mid 0.732 fast 0.848  K  164  units owning 0.804  median sin(err) 0.042
+  rounds + global split/merge, r2 (12 splits) cost  2.00  acc 0.881  slow 0.613 mid 0.819 fast 0.866  K  170  units owning 0.861  median sin(err) 0.019
+  rounds + global split/merge, r3 (2 splits) cost  3.00  acc 0.886  slow 0.607 mid 0.829 fast 0.875  K  172  units owning 0.871  median sin(err) 0.017
+  rounds + global split/merge, r4 (1 splits) cost  4.00  acc 0.887  slow 0.622 mid 0.829 fast 0.876  K  173  units owning 0.876  median sin(err) 0.016
+  rounds + global split/merge, r5 (2 splits) cost  5.00  acc 0.887  slow 0.655 mid 0.829 fast 0.876  K  175  units owning 0.887  median sin(err) 0.017
+  online ks + reservoir 400 split, 1 pass cost  1.00  acc 0.884  slow 0.565 mid 0.820 fast 0.875  K  171  units owning 0.851  median sin(err) 0.063
+  online ks + reservoir 400 split, 3 pass cost  3.00  acc 0.888  slow 0.594 mid 0.857 fast 0.872  K  173  units owning 0.876  median sin(err) 0.064
+  online ks + reservoir 2000 split, 1 pass cost  1.00  acc 0.886  slow 0.575 mid 0.829 fast 0.875  K  173  units owning 0.861  median sin(err) 0.064
+  online ks + reservoir 2000 split, 3 pass cost  3.00  acc 0.890  slow 0.629 mid 0.866 fast 0.872  K  177  units owning 0.897  median sin(err) 0.065
+  online 1 pass, then 1 global (18 splits) cost  2.00  acc 0.876  slow 0.490 mid 0.782 fast 0.866  K  160  units owning 0.804  median sin(err) 0.037
+    ... then a second global (5 splits) cost  3.00  acc 0.880  slow 0.520 mid 0.812 fast 0.867  K  164  units owning 0.825  median sin(err) 0.017
+  time 1491 s
+seed 2: 1.13 M spikes, 175 units, median N 2949, 57 orphans, start dictionary 153
+  ideal (true templates)             cost  0.00  acc 0.886  slow 0.884 mid 0.875 fast 0.871  K  175  units owning 1.000  median sin(err) 0.000
+  start                              cost  0.00  acc 0.772  slow 0.404 mid 0.589 fast 0.810  K  153  units owning 0.703  median sin(err) 0.152
+  rounds, mean only, r1              cost  1.00  acc 0.795  slow 0.364 mid 0.648 fast 0.830  K  153  units owning 0.720  median sin(err) 0.050
+  rounds, mean only, r2              cost  2.00  acc 0.812  slow 0.375 mid 0.670 fast 0.852  K  153  units owning 0.731  median sin(err) 0.048
+  rounds, mean only, r3              cost  3.00  acc 0.818  slow 0.399 mid 0.686 fast 0.855  K  153  units owning 0.737  median sin(err) 0.037
+  rounds, mean only, r4              cost  4.00  acc 0.820  slow 0.419 mid 0.705 fast 0.850  K  153  units owning 0.749  median sin(err) 0.031
+  rounds, mean only, r5              cost  5.00  acc 0.822  slow 0.402 mid 0.707 fast 0.857  K  153  units owning 0.743  median sin(err) 0.026
+  online ks, 0.05 pass               cost  0.05  acc 0.818  slow 0.390 mid 0.685 fast 0.859  K  153  units owning 0.737  median sin(err) 0.113
+  online ks, 0.1 pass                cost  0.10  acc 0.821  slow 0.402 mid 0.687 fast 0.860  K  153  units owning 0.743  median sin(err) 0.093
+  online ks, 0.25 pass               cost  0.25  acc 0.827  slow 0.432 mid 0.720 fast 0.861  K  153  units owning 0.760  median sin(err) 0.067
+  online ks, 0.5 pass                cost  0.50  acc 0.827  slow 0.385 mid 0.721 fast 0.863  K  153  units owning 0.743  median sin(err) 0.050
+  online ks, 1 pass                  cost  1.00  acc 0.827  slow 0.381 mid 0.737 fast 0.862  K  153  units owning 0.743  median sin(err) 0.039
+  online ks, 3 pass                  cost  3.00  acc 0.828  slow 0.367 mid 0.745 fast 0.863  K  153  units owning 0.743  median sin(err) 0.033
+  online inv, 0.05 pass              cost  0.05  acc 0.806  slow 0.407 mid 0.648 fast 0.847  K  153  units owning 0.731  median sin(err) 0.083
+  online inv, 0.1 pass               cost  0.10  acc 0.811  slow 0.397 mid 0.658 fast 0.854  K  153  units owning 0.731  median sin(err) 0.066
+  online inv, 0.25 pass              cost  0.25  acc 0.813  slow 0.439 mid 0.650 fast 0.856  K  153  units owning 0.743  median sin(err) 0.055
+  online inv, 0.5 pass               cost  0.50  acc 0.815  slow 0.430 mid 0.661 fast 0.856  K  153  units owning 0.743  median sin(err) 0.044
+  online inv, 1 pass                 cost  1.00  acc 0.818  slow 0.433 mid 0.688 fast 0.856  K  153  units owning 0.749  median sin(err) 0.035
+  online inv, 3 pass                 cost  3.00  acc 0.822  slow 0.417 mid 0.689 fast 0.861  K  153  units owning 0.743  median sin(err) 0.028
+  online mem, 0.05 pass              cost  0.05  acc 0.806  slow 0.407 mid 0.648 fast 0.847  K  153  units owning 0.731  median sin(err) 0.083
+  online mem, 0.1 pass               cost  0.10  acc 0.811  slow 0.397 mid 0.658 fast 0.854  K  153  units owning 0.731  median sin(err) 0.066
+  online mem, 0.25 pass              cost  0.25  acc 0.813  slow 0.439 mid 0.650 fast 0.856  K  153  units owning 0.743  median sin(err) 0.055
+  online mem, 0.5 pass               cost  0.50  acc 0.815  slow 0.430 mid 0.661 fast 0.856  K  153  units owning 0.743  median sin(err) 0.044
+  online mem, 1 pass                 cost  1.00  acc 0.818  slow 0.433 mid 0.688 fast 0.856  K  153  units owning 0.749  median sin(err) 0.035
+  online mem, 3 pass                 cost  3.00  acc 0.823  slow 0.434 mid 0.691 fast 0.861  K  153  units owning 0.749  median sin(err) 0.029
+  rounds + global split/merge, r1 (33 splits) cost  1.00  acc 0.850  slow 0.587 mid 0.774 fast 0.858  K  151  units owning 0.851  median sin(err) 0.037
+  rounds + global split/merge, r2 (8 splits) cost  2.00  acc 0.864  slow 0.672 mid 0.816 fast 0.865  K  158  units owning 0.897  median sin(err) 0.017
+  rounds + global split/merge, r3 (4 splits) cost  3.00  acc 0.870  slow 0.677 mid 0.855 fast 0.867  K  162  units owning 0.914  median sin(err) 0.017
+  rounds + global split/merge, r4 (3 splits) cost  4.00  acc 0.876  slow 0.712 mid 0.873 fast 0.870  K  165  units owning 0.931  median sin(err) 0.017
+  rounds + global split/merge, r5 (3 splits) cost  5.00  acc 0.878  slow 0.746 mid 0.874 fast 0.870  K  168  units owning 0.943  median sin(err) 0.017
+  online ks + reservoir 400 split, 1 pass cost  1.00  acc 0.877  slow 0.704 mid 0.869 fast 0.870  K  168  units owning 0.926  median sin(err) 0.064
+  online ks + reservoir 400 split, 3 pass cost  3.00  acc 0.879  slow 0.730 mid 0.871 fast 0.869  K  168  units owning 0.937  median sin(err) 0.066
+  online ks + reservoir 2000 split, 1 pass cost  1.00  acc 0.876  slow 0.697 mid 0.870 fast 0.869  K  168  units owning 0.926  median sin(err) 0.064
+  online ks + reservoir 2000 split, 3 pass cost  3.00  acc 0.879  slow 0.731 mid 0.871 fast 0.869  K  170  units owning 0.937  median sin(err) 0.066
+  online 1 pass, then 1 global (15 splits) cost  2.00  acc 0.855  slow 0.538 mid 0.788 fast 0.869  K  147  units owning 0.829  median sin(err) 0.036
+    ... then a second global (8 splits) cost  3.00  acc 0.866  slow 0.599 mid 0.828 fast 0.871  K  154  units owning 0.869  median sin(err) 0.016
+  time 957 s
+
+[exited with code 0]

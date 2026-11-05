@@ -86,6 +86,17 @@ Unlike the rest of this folder, they write their outputs next to themselves; the
 |---|---|
 | `modular_pipeline_audit.md` | Whether steps from KS2.0/2.1, KS2.5 and KS4 (preliminary extraction, drift, template learning, final extraction, final clustering, merge/split, amplitude cut) could be swapped: what each version's code does at each step, the cost of every handoff, what the experiments so far say, and which targeted swaps are worth running. A seven-agent read-only audit; no sorts, no scripts kept |
 
+## `interleaving\`: interleaving extraction, clustering and template refinement
+
+| File | Question |
+|---|---|
+| `interleaving_audit.md` | Whether extraction, clustering and template refinement in KS4 should be interleaved in small batches, as KS2.5 interleaves extraction and template learning, instead of whole-recording rounds: an eight-agent audit (KS4 code, KS2.5 code, theory, literature, measurements on the round sorts, compute, a ground-truth simulation, a skeptic), with design options, a pilot and decision rules; `notes\` holds each agent's notes, the other subfolders their scripts |
+| `checks\t1_variants.py`, `t1_score.py`, `t1_summarise.py` | Each saved round sort relabelled by extraction template, with and without KS4's final merge, scored with the harness (H8 and default, seeds 1-3): what clustering adds beyond template labels, and how template labels change as each round's clusters rebuild the next dictionary; outputs in `checks\` of the data folder |
+| `checks\t2_orphans.py` | Share of round-2 orphan spikes whose residual after the catching template exceeds the threshold, so a residual-based birth could see them |
+
+Unlike the rest of this folder, the skeptic's and theory's small outputs are next to their scripts. No sort was run; the toy
+simulation uses synthetic data only. Other outputs: `C:\data\ks4_tuning\exploratory\interleaving\`.
+
 ## `pc_features\`: stock KS4's `make_pc_features`
 
 | File | Question |
